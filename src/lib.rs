@@ -1,16 +1,15 @@
-
 use rand::Rng;
 const VERSION: f32 = 0.01;
 const WIDTH: usize  = 10;
 const HEIGHT: usize = 25;
 
 #[derive(Debug)]
-enum Orientation {
+pub enum Orientation {
     Up, Down, Left, Right,
 }
 
 #[derive(Debug)]
-enum Shape {
+pub enum Shape {
     Eye, El, ElInv, Square, Zee, ZeeInv,
 }
 
@@ -23,7 +22,7 @@ impl Drop for Shape {
 }
 
 #[derive(Debug)]
-struct Point {
+pub struct Point {
     x: usize, 
     y: usize,
 }
@@ -150,7 +149,7 @@ impl Shape {
 
 } 
 
-struct ShapeController {
+pub struct ShapeController {
     orientation: Orientation,
     position: Point,
     shape: Shape,
@@ -205,7 +204,6 @@ impl ShapeController {
             Orientation::Down => Orientation::Right,
             Orientation::Right => Orientation::Up
         }
-
     }
 
 }
@@ -264,10 +262,10 @@ enum GameState {New, Playing, Over}
 pub struct Game {
     board: Board,
     score: u32,
-    current_shape: ShapeController,
+    shape_controller: ShapeController,
     next_shape: Shape,
     hold_shape: Option<Shape>,
-    state: GameState
+    state: GameState,
 }
 
 impl Game {
@@ -275,21 +273,52 @@ impl Game {
         Game {
             board: Board([[false; WIDTH]; HEIGHT]),
             score: 0,
-            current_shape: ShapeController::new(),
+            shape_controller: ShapeController::new(),
             next_shape: Shape::random(),
             hold_shape: None,
             state: GameState::New,
         } 
     }
 
+    pub fn shape_controller(&mut self) -> &mut ShapeController {
+        return &mut self.shape_controller;
+    }
+
+    pub fn reset_board(&mut self) {
+        for y in 0..HEIGHT {
+            for x in 0..WIDTH {
+                self.board.0[y][x] = false;
+            }
+        }   
+    }
+
+    pub fn setup_board(&mut self, config: Vec<Vec<bool>>, position: Point, overwrite: bool) {
+        let mut x;
+        let mut y = 0;
+
+        for row in config.iter() {
+            x = 0;
+            for cell in row.iter() {
+                println!("x {}, y {}", x, y);
+                if overwrite {
+                    self.board.0[y + position.y][x + position.x] = *cell;
+                } else {
+                    self.board.0[y + position.y][x + position.x] |= *cell;
+                }
+                x += 1;
+            }
+            y += 1;
+        }
+    }
+
     pub fn report(&self) -> String {
-        let current_piece_status = format!("{:?}", self.current_shape.position);
-        let current_piece_orientation = format!("shape = {:?}, orientation = {:?}", self.current_shape.shape(), self.current_shape.orientation);
+        let current_piece_status = format!("{:?}", self.shape_controller.position);
+        let current_piece_orientation = format!("shape = {:?}, orientation = {:?}", self.shape_controller.shape(), self.shape_controller.orientation);
         return String::from(format!("T E T R I X version {}\n{}\n{}\n{}\nscore: {}\nstate:{:?}\n", VERSION, current_piece_status, current_piece_orientation, self.board.report(), self.score, self.state))
     }
 
     fn check_collision(&self, s: &Shape, p: &Point) -> bool {
-        let m = s.to_a(&self.current_shape.orientation);
+        let m = s.to_a(&self.shape_controller.orientation);
         for y in 0..4 {
             for x in 0..4 {
                 let cell = m[3-y][x];
@@ -303,8 +332,8 @@ impl Game {
     }
 
     pub fn check_shape(&self) -> bool {
-        let s = &self.current_shape.shape;
-        let p = &self.current_shape.position;
+        let s = &self.shape_controller.shape;
+        let p = &self.shape_controller.position;
         if p.y == 0 {
             println!("p.y is zero!  make a new shape.");
             return true;
@@ -313,8 +342,8 @@ impl Game {
     }
 
     pub fn check_over(&self) -> bool {
-        let s = &self.current_shape.shape;
-        let p = &self.current_shape.position;
+        let s = &self.shape_controller.shape;
+        let p = &self.shape_controller.position;
         return p.y >= 20 && self.check_collision(s, p);
     }
 
@@ -323,22 +352,63 @@ impl Game {
             GameState::Playing => {},
             _ => return,
         }
-        self.board.vacate(&self.current_shape);
+        self.board.vacate(&self.shape_controller);
 
         if self.check_shape() {
             if self.check_over() {
                 self.state = GameState::Over;
             }
-            self.board.occupy(&self.current_shape);
-            self.current_shape = ShapeController::new();
+            self.board.occupy(&self.shape_controller);
+            self.shape_controller = ShapeController::new();
         }
     
-        self.current_shape.down();
-        self.board.occupy(&self.current_shape);
+        self.shape_controller.down();
+        self.board.occupy(&self.shape_controller);
         println!("made next state");
     }
 
     pub fn start(&mut self) {
         self.state = GameState::Playing;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn game() {
+        // when the game starts, there should be a shape controller with the current shape
+        // and there should be a next shape.  
+        // there should be no "hold" shape
+
+        let mut g = Game::new();
+        match g.hold_shape {
+            None => assert!(true),
+            _ => assert!(false, "Hold shape should be unset at start")
+        }
+        let config = vec![
+            vec![false, true, false, true, false, false, true],
+            vec![false, true, false, true, false, false, true],
+            vec![false, true, false, true, false, false, true],
+            vec![false, true,  true, true, false, false, true],
+            vec![false, true, false, true, false, false, true],
+            vec![false, true, false, true, false, false, true],
+            vec![false, true, false, true, false, false, true],
+        ];
+        g.setup_board(config, Point{x: 1, y: 3}, true);
+        println!("{}", g.report());
+        g.reset_board();
+        println!("{}", g.report());
+        let mut trues = 0;
+        for y in 0..HEIGHT {
+            for x in 0..WIDTH {
+                match g.board.0[y][x] {
+                    true => trues += 1,
+                    false => {}
+                }
+            }
+        }
+        assert_eq!(trues, 0, "no boxes after board reset!");
     }
 }
