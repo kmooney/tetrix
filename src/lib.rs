@@ -13,6 +13,10 @@ pub enum Shape {
     Eye, El, ElInv, Square, Zee, ZeeInv,
 }
 
+pub enum Direction {
+    Ccw, Cw
+}
+
 type ShapeMat = [[bool; 4]; 4];
 
 impl Drop for Shape {
@@ -25,6 +29,12 @@ impl Drop for Shape {
 pub struct Point {
     x: usize, 
     y: usize,
+}
+
+impl Point {
+    fn new(x: usize, y: usize) -> Point {
+        Point {x: x, y: y}
+    }
 }
 
 impl Shape {
@@ -188,6 +198,13 @@ impl ShapeController {
         }
     }
 
+    pub fn rotate(&mut self, d: Direction) {
+        match d {
+            Ccw => self.rotate_ccw(),
+            Cw => self.rotate_cw()
+        }
+    }
+
     pub fn rotate_cw(&mut self) {
         self.orientation = match self.orientation {
             Orientation::Up => Orientation::Right,
@@ -299,7 +316,6 @@ impl Game {
         for row in config.iter() {
             x = 0;
             for cell in row.iter() {
-                println!("x {}, y {}", x, y);
                 if overwrite {
                     self.board.0[y + position.y][x + position.x] = *cell;
                 } else {
@@ -345,6 +361,12 @@ impl Game {
         let s = &self.shape_controller.shape;
         let p = &self.shape_controller.position;
         return p.y >= 20 && self.check_collision(s, p);
+    }
+
+    pub fn rotate(&mut self, direction: Direction) {
+        self.board.vacate(&self.shape_controller);
+        self.shape_controller.rotate(direction);
+        self.board.occupy(&self.shape_controller);
     }
 
     pub fn next(&mut self) {
@@ -411,4 +433,50 @@ mod tests {
         }
         assert_eq!(trues, 0, "no boxes after board reset!");
     }
+
+    #[test]
+    fn rotate() {
+        let mut g = Game::new();
+        g.shape_controller.shape = Shape::El;
+        g.shape_controller.position = Point::new(3,3);
+        g.start();
+        g.rotate(Direction::Ccw);
+        println!("{}", g.report());
+        assert!(g.board.0[3][3]);
+        assert!(g.board.0[3][4]);
+        assert!(g.board.0[3][5]);
+        assert!(g.board.0[4][5]);
+        assert!(g.board.0[3][6] == false);
+    }
+
+    #[test]
+    fn wall_kick_l() {
+        let mut g = Game::new();
+        g.shape_controller.shape = Shape::El;
+        g.shape_controller.position = Point::new(0, 3);
+        g.start();
+        let b = &mut g.board;
+        b.occupy(&g.shape_controller);
+        assert!(g.board.0[3][0], "box 1 in the wrong spot!");
+        assert!(g.board.0[3][1]);
+        assert!(g.board.0[4][0]);
+        assert!(g.board.0[5][0]);
+        g.rotate(Direction::Ccw);
+        assert!(g.board.0[3][0]);
+        assert!(g.board.0[3][1]);
+        assert!(g.board.0[3][2]);
+        assert!(g.board.0[4][2]);
+    }
+
+    #[test]
+    fn flush_wall_r() {
+
+    }
+
+    #[test]
+    fn wall_kick_r() {
+
+    }
+
+
 }
