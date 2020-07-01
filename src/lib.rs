@@ -10,11 +10,20 @@ pub enum Orientation {
 
 #[derive(Debug)]
 pub enum Shape {
-    Eye, El, ElInv, Square, Zee, ZeeInv,
+    Eye, El, ElInv, Square, Zee, ZeeInv, Tee
 }
 
 pub enum Direction {
     Ccw, Cw
+}
+
+impl Direction {
+    fn reverse(&self) -> Direction {
+        match self {
+            Direction::Ccw => Direction::Cw, 
+            Direction::Cw => Direction::Ccw,
+        }
+    }
 }
 
 type ShapeMat = [[bool; 4]; 4];
@@ -39,19 +48,66 @@ impl Point {
 
 impl Shape {
     fn random() -> Shape {
-        match rand::thread_rng().gen_range(0, 6) {
+        match rand::thread_rng().gen_range(0, 7) {
             0 => Shape::Eye,
             1 => Shape::El,
             2 => Shape::ElInv,
             3 => Shape::Square,
             4 => Shape::Zee,
             5 => Shape::ZeeInv,
+            6 => Shape::Tee,
             _ => panic!("wtf value is out of range")
         }	
     }
 
+    fn width(&self, o: &Orientation) -> usize {
+        match self {
+            Shape::Eye => match o {
+                Orientation::Left | Orientation::Right => 4,
+                Orientation::Up | Orientation::Down => 1,
+            },
+            Shape::Square => 2,
+            Shape::ElInv | Shape::El | Shape::ZeeInv | Shape::Zee => match o {
+                Orientation::Left | Orientation::Right => 3,
+                Orientation::Up | Orientation:: Down => 2,
+            },
+            Shape::Tee => {
+                match o {
+                    Orientation::Up | Orientation::Down => 3,
+                    Orientation::Left | Orientation::Right => 2, 
+                }
+            }
+        }
+    }
+
     fn to_a(&self, o: &Orientation) -> ShapeMat {
         match self {
+            Shape::Tee => match o {
+                Orientation::Up => [
+                    [false, false, false, false],
+                    [false, false, false, false],
+                    [false, true, false, false],
+                    [true, true, true, false],
+                ],
+                Orientation::Down => [
+                    [false, false, false, false],
+                    [false, false, false, false],
+                    [true, true, true, false],
+                    [false, true, false, false],
+                ],
+                Orientation::Left => [
+                    [false, false, false, false],
+                    [false, true, false, false],
+                    [true, true, false, false],
+                    [false, true, false, false],
+                ],
+                Orientation::Right => [
+                    [false, false, false, false],
+                    [true, false, false, false],
+                    [true, true, false, false],
+                    [true, false, false, false],
+                ],
+            },
             Shape::Eye => match o {
                 Orientation::Left | Orientation::Right => [
                     [false, false, false, false],
@@ -159,6 +215,7 @@ impl Shape {
 
 } 
 
+#[derive(Debug)]
 pub struct ShapeController {
     orientation: Orientation,
     position: Point,
@@ -198,10 +255,26 @@ impl ShapeController {
         }
     }
 
-    pub fn rotate(&mut self, d: Direction) {
+    fn rotate(&mut self, d: Direction, b: &Board) {
         match d {
-            Ccw => self.rotate_ccw(),
-            Cw => self.rotate_cw()
+            Direction::Ccw => self.rotate_ccw(),
+            Direction::Cw => self.rotate_cw()
+        }
+        let mut kick_r = false;
+
+
+        let p = &self.position;
+        let mx = self.shape.width(&self.orientation) - 1;
+        let a = self.shape.to_a(&self.orientation);
+        for my in 0..3 {
+            println!("{:?}", p);
+            if p.x + mx >= WIDTH || a[3 - my][mx] && b.0[p.y + my][p.x + mx] {
+                kick_r = true;
+                break;
+            }
+        }
+        if kick_r {
+            self.position.x -= 1;
         }
     }
 
@@ -255,7 +328,9 @@ impl Board {
                 // 0 is the bottom of the board
                 // so invert the y coordinate for this
                 // shape
-                self.0[y+p.y][x+p.x] |= m[3-y][x];
+                if m[3-y][x] {
+                    self.0[y+p.y][x+p.x] = m[3-y][x];
+                }
             }
         }
     }
@@ -263,9 +338,10 @@ impl Board {
     pub fn vacate(&mut self, c: &ShapeController) {
         let m = &c.shape.to_a(&c.orientation);
         let p = c.position();
+        println!("sc vacate: {:?}", c);
         for y in 0..4 {
             for x in 0..4 {
-                if self.0[y+p.y][x+p.x] && m[3-y][x] {
+                if m[3-y][x] && self.0[y+p.y][x+p.x]  {
                     self.0[y+p.y][x+p.x] = false;
                 }
             }
@@ -312,14 +388,14 @@ impl Game {
     pub fn setup_board(&mut self, config: Vec<Vec<bool>>, position: Point, overwrite: bool) {
         let mut x;
         let mut y = 0;
-
+        let config_height = config.len();
         for row in config.iter() {
             x = 0;
             for cell in row.iter() {
                 if overwrite {
-                    self.board.0[y + position.y][x + position.x] = *cell;
+                    self.board.0[config_height - y + position.y - 1][x + position.x] = *cell;
                 } else {
-                    self.board.0[y + position.y][x + position.x] |= *cell;
+                    self.board.0[config_height - y + position.y - 1][x + position.x] |= *cell;
                 }
                 x += 1;
             }
@@ -365,7 +441,7 @@ impl Game {
 
     pub fn rotate(&mut self, direction: Direction) {
         self.board.vacate(&self.shape_controller);
-        self.shape_controller.rotate(direction);
+        self.shape_controller.rotate(direction, &self.board);
         self.board.occupy(&self.shape_controller);
     }
 
@@ -470,12 +546,117 @@ mod tests {
 
     #[test]
     fn flush_wall_r() {
+        let mut g = Game::new();
+        g.shape_controller.shape = Shape::El;
+        g.shape_controller.position = Point::new(8, 3);
+        g.shape_controller.orientation = Orientation::Up;
+        g.start();
+        let b = &mut g.board;
+        b.occupy(&g.shape_controller);
+        //println!("{}", g.board.report());
+        assert!(g.board.0[3][8], "box 1 in the wrong spot!");
+        assert!(g.board.0[4][8]);
+        assert!(g.board.0[5][8]);
+        assert!(g.board.0[3][9]);
+
 
     }
 
     #[test]
     fn wall_kick_r() {
+        let mut g = Game::new();
+        g.shape_controller.shape = Shape::El;
+        g.shape_controller.position = Point::new(8, 3);
+        g.shape_controller.orientation = Orientation::Up;
+        g.start();
+        let b = &mut g.board;
+        b.occupy(&g.shape_controller);      
+        assert!(g.board.0[3][8]);
+        assert!(g.board.0[4][8]);
+        assert!(g.board.0[5][8]);
+        assert!(g.board.0[3][9]);        
+        println!("{}", g.board.report());
+        
+        g.rotate(Direction::Ccw);
+        
+        assert!(g.board.0[3][7]);
+        assert!(g.board.0[3][8]);
+        assert!(g.board.0[3][9]);
+        assert!(g.board.0[4][9]);
+        println!("{}", g.board.report());
+    }
 
+    fn assert_el_at(c: &ShapeController, b: &Board) {
+        let p = &c.position;
+        let o = &c.orientation;
+        match o {
+            Orientation::Up => {
+                assert!(b.0[p.y][p.x]);
+                assert!(b.0[p.y+1][p.x]);
+                assert!(b.0[p.y+2][p.x]);
+                assert!(b.0[p.y][p.x+1]);
+            },
+            Orientation::Left => {
+                assert!(b.0[p.y][p.x]);
+                assert!(b.0[p.y][p.x+1]);
+                assert!(b.0[p.y][p.x+2]);
+                assert!(b.0[p.y+1][p.x+2]);               
+            },
+            _ => assert!(false, "not testing that orientation yet!")
+        }
+    }
+    #[test]
+    fn internal_kick_r() {
+        // set up the game, but some junk in the board
+        // kick off the junk.
+        let mut g = Game::new();
+        let config = vec![
+            vec![false, false, false, false, true],
+            vec![false, false, false, false, true],
+            vec![false, false, false, false, true],
+            vec![false, false, false, false, true],
+            vec![false, false, false, false, true],
+            vec![false, false, false, false, true],
+            vec![false, false, false, false, true],
+            vec![false, false, false, false, true],
+        ];
+        g.setup_board(config, Point::new(0,0), false);
+        g.shape_controller.shape = Shape::El;
+        g.shape_controller.position = Point::new(2, 1);
+        g.shape_controller.orientation = Orientation::Up;
+        g.start();
+        g.board.occupy(&g.shape_controller);
+        assert_el_at(&g.shape_controller, &g.board);
+        g.rotate(Direction::Ccw);
+        assert_el_at(&g.shape_controller, &g.board);
+        assert!(g.shape_controller.position.x == 1, "expected right kick");
+    }
+
+    #[test]
+    fn t_spin() {
+        let mut g = Game::new();
+        let config = vec![
+            vec![false, false, false, false, false, false, false, false, false, false],
+            vec![false, false, false, false, false, false, false, false, false, false],
+            vec![false, false, false, false, false, false, false, false, false, false],
+            vec![false, false, false, false, false, false, false, false, false, false],
+            vec![false, false, false, false, true, true,  false,  false, false, false],
+            vec![false, false, false, false, true, true,  false,  false, false, true],
+            vec![true,  true,  true,  false, true, true,  false, false, false, true],
+            vec![true,  true,  true,  true,  true, true,  true,  false, true,  true],
+        ];
+        g.setup_board(config, Point::new(0,0), false);
+        g.shape_controller.shape = Shape::Tee;
+        g.shape_controller.orientation = Orientation::Right;
+        g.shape_controller.position = Point::new(7,0);
+        g.board.occupy(&g.shape_controller);
+        g.start();
+        println!("{}", g.board.report());
+        g.rotate(Direction::Cw);
+        println!("{}", g.board.report());
+        for x in 0..10 {
+            assert!(g.board.0[0][x], "expected whole line to be true!");
+        }
     }
 
 
