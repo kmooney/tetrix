@@ -141,8 +141,6 @@ impl Game {
                     continue 'outer;
                 }
             }
-            // clear the line here - dump the line above into this one, and do the same for
-            // each line up to the HEIGHT.
             'fall: for z in y..HEIGHT - 1 {
                 let mut empty_line = true;
                 for x in 0..WIDTH {
