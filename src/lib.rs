@@ -191,7 +191,6 @@ mod tests {
         g.shape_controller().set_shape(Shape::El);
         g.shape_controller().set_position(Point::new(0, 3));
         g.start();
-        let b = &mut g.board;
         g.rotate(Direction::Ccw);
         assert!(g.shape_controller().position().x == 0, "shape controller position should be at 0");
     }
