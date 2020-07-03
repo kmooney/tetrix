@@ -4,6 +4,11 @@ use crate::shape_controller::ShapeController;
 pub struct Board(pub [[bool; WIDTH]; HEIGHT]);
 
 impl Board {
+
+    pub fn new() -> Board {
+        return Board([[false; WIDTH]; HEIGHT]);
+    }
+
     pub fn report(&self) -> String {
         let mut board_report = String::new();
         board_report.push_str(&format!("[  ]----{:02}----\n", HEIGHT));

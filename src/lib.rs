@@ -3,7 +3,7 @@ mod shape_controller;
 mod board;
 use board::Board;
 use shape_controller::{ShapeController, Direction};
-use shape::{Shape, Point, Orientation};
+use shape::{Shape, Point};
 
 const VERSION: f32 = 0.01;
 const WIDTH: usize  = 10;
@@ -46,7 +46,7 @@ impl Game {
             for x in 0..WIDTH {
                 self.board.0[y][x] = false;
             }
-        }   
+        }
     }
 
     pub fn setup_board(&mut self, config: Vec<Vec<bool>>, position: Point, overwrite: bool) {
@@ -104,9 +104,7 @@ impl Game {
     pub fn rotate(&mut self, direction: Direction) {
         let b = &mut self.board;
         let c = &mut self.shape_controller;
-        b.vacate(c);
         c.rotate(direction, b);
-        b.occupy(c);
     }
 
     pub fn next(&mut self) {
@@ -135,6 +133,7 @@ impl Game {
 
 #[cfg(test)]
 mod tests {
+    use crate::shape::Orientation;
     use super::*;
 
     #[test]
@@ -174,15 +173,16 @@ mod tests {
     #[test]
     fn rotate() {
         let mut g = Game::new();
+        let mut b = Board::new();
         g.shape_controller().set_shape(Shape::El);
         g.shape_controller().set_position(Point::new(3,3));
         g.start();
         g.rotate(Direction::Ccw);
-        assert!(g.board.0[3][3]);
-        assert!(g.board.0[3][4]);
-        assert!(g.board.0[3][5]);
-        assert!(g.board.0[4][5]);
-        assert!(g.board.0[3][6] == false);
+        b.occupy(g.shape_controller());
+        assert!(b.0[3][3]);
+        assert!(b.0[3][4]);
+        assert!(b.0[3][5]);
+        assert!(b.0[4][5]);
     }
 
     #[test]
@@ -192,16 +192,8 @@ mod tests {
         g.shape_controller().set_position(Point::new(0, 3));
         g.start();
         let b = &mut g.board;
-        b.occupy(&g.shape_controller);
-        assert!(g.board.0[3][0], "box 1 in the wrong spot!");
-        assert!(g.board.0[3][1]);
-        assert!(g.board.0[4][0]);
-        assert!(g.board.0[5][0]);
         g.rotate(Direction::Ccw);
-        assert!(g.board.0[3][0]);
-        assert!(g.board.0[3][1]);
-        assert!(g.board.0[3][2]);
-        assert!(g.board.0[4][2]);
+        assert!(g.shape_controller().position().x == 0, "shape controller position should be at 0");
     }
 
     #[test]
@@ -235,31 +227,10 @@ mod tests {
 
         g.rotate(Direction::Ccw);
         
-        assert!(g.board.0[3][7]);
-        assert!(g.board.0[3][8]);
-        assert!(g.board.0[3][9]);
-        assert!(g.board.0[4][9]);
+        assert!(g.shape_controller().position().x == 7, "expected kick on shape");
     }
 
-    fn assert_el_at(c: &ShapeController, b: &Board) {
-        let p = &c.position();
-        let o = &c.orientation();
-        match o {
-            Orientation::Up => {
-                assert!(b.0[p.y][p.x]);
-                assert!(b.0[p.y+1][p.x]);
-                assert!(b.0[p.y+2][p.x]);
-                assert!(b.0[p.y][p.x+1]);
-            },
-            Orientation::Left => {
-                assert!(b.0[p.y][p.x]);
-                assert!(b.0[p.y][p.x+1]);
-                assert!(b.0[p.y][p.x+2]);
-                assert!(b.0[p.y+1][p.x+2]);               
-            },
-            _ => assert!(false, "not testing that orientation yet!")
-        }
-    }
+  
     #[test]
     fn internal_kick_r() {
         // set up the game, but some junk in the board
@@ -280,10 +251,9 @@ mod tests {
         g.shape_controller.set_position(Point::new(2, 1));
         g.shape_controller.set_orientation(Orientation::Up);
         g.start();
-        g.board.occupy(&g.shape_controller);
-        assert_el_at(&g.shape_controller, &g.board);
+
         g.rotate(Direction::Ccw);
-        assert_el_at(&g.shape_controller, &g.board);
+
         assert!(g.shape_controller().position().x == 1, "expected right kick");
     }
 
@@ -304,12 +274,8 @@ mod tests {
         g.shape_controller.set_shape(Shape::Tee);
         g.shape_controller.set_orientation(Orientation::Right);
         g.shape_controller.set_position(Point::new(7,0));
-        g.board.occupy(&g.shape_controller);
         g.start();
-        g.rotate(Direction::Cw);
-        for x in 0..10 {
-            assert!(g.board.0[0][x], "expected whole line to be true!");
-        }
+        g.rotate(Direction::Cw);        
         assert!(g.shape_controller.position().x == 6, "expected a kick!");
     }
 
@@ -330,17 +296,12 @@ mod tests {
         g.shape_controller.set_shape(Shape::Eye);
         g.shape_controller.set_orientation(Orientation::Up);
         g.shape_controller.set_position(Point::new(1, 2));
-        g.board.occupy(&g.shape_controller);
         g.start();
-        for y in 2..4 {
-            assert!(g.board.0[y][1], "missing part of I shape");
-        }
+        
         g.rotate(Direction::Ccw);
-        for y in 0..3 {
-            assert!(!g.board.0[y][1], "found part of I when there shouldn't have been any!");
-        }
-        for x in 1..5 {
-            assert!(g.board.0[5][x], "missing part of I shape after rotation");
-        }
+        
+        assert!(5 == g.shape_controller().position().y, "position should be 5,1 but was {:?}", g.shape_controller().position());
+        assert!(1 == g.shape_controller().position().x, "position should be 5,1 but was {:?}", g.shape_controller().position());
+
     }
 }

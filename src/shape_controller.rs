@@ -1,6 +1,6 @@
 use crate::shape::{Shape, Orientation, Point};
 use crate::board::Board;
-use crate::{WIDTH, HEIGHT};
+use crate::WIDTH;
 
 pub enum Direction {
     Ccw, Cw
@@ -92,7 +92,9 @@ impl ShapeController {
 
         loop {
             if !self.any_collide(b) { return }
-            self.position.x -= 1;
+            if self.position.x != 0 {
+                self.position.x -= 1;
+            }
             if !self.any_collide(b) { return }
             self.position.x += 1;
             self.position.y += 1;        
