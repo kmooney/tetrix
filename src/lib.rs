@@ -28,11 +28,6 @@ impl Direction {
 
 type ShapeMat = [[bool; 4]; 4];
 
-impl Drop for Shape {
-    fn drop(&mut self) {
-        println!("Shape {:?} is destructing.", self);
-    }
-}
 
 #[derive(Debug)]
 pub struct Point {
@@ -80,7 +75,7 @@ impl Shape {
         }
     }
 
-    fn to_a(&self, o: &Orientation) -> ShapeMat {
+    fn to_mat(&self, o: &Orientation) -> ShapeMat {
         match self {
             Shape::Tee => match o {
                 Orientation::Up => [
@@ -255,27 +250,37 @@ impl ShapeController {
         }
     }
 
+    fn any_collide(&self, b: &Board) -> bool {
+        let width = self.shape.width(&self.orientation);
+        let position = &self.position;
+        if position.x + width > WIDTH { return true }
+        let mat = &self.shape.to_mat(&self.orientation);
+        for my in 0..3 {
+            for mx in 0..3 {
+                if position.x + mx >= WIDTH || mat[3 - my][mx] && b.0[position.y + my][position.x + mx] {
+                    return true
+                }   
+            }
+        }
+
+        return false
+
+    }
+
     fn rotate(&mut self, d: Direction, b: &Board) {
         match d {
             Direction::Ccw => self.rotate_ccw(),
             Direction::Cw => self.rotate_cw()
         }
-        let mut kick_r = false;
 
-
-        let p = &self.position;
-        let mx = self.shape.width(&self.orientation) - 1;
-        let a = self.shape.to_a(&self.orientation);
-        for my in 0..3 {
-            println!("{:?}", p);
-            if p.x + mx >= WIDTH || a[3 - my][mx] && b.0[p.y + my][p.x + mx] {
-                kick_r = true;
-                break;
-            }
-        }
-        if kick_r {
+        loop {
+            if !self.any_collide(b) { return }
             self.position.x -= 1;
+            if !self.any_collide(b) { return }
+            self.position.x += 1;
+            self.position.y += 1;        
         }
+
     }
 
     pub fn rotate_cw(&mut self) {
@@ -321,7 +326,7 @@ impl Board {
     }
 
     pub fn occupy(&mut self, c: &ShapeController) {
-        let m = c.shape.to_a(c.orientation());
+        let m = c.shape.to_mat(c.orientation());
         let p = c.position();
         for y in 0..4 {
             for x in 0..4 {
@@ -336,9 +341,8 @@ impl Board {
     }
 
     pub fn vacate(&mut self, c: &ShapeController) {
-        let m = &c.shape.to_a(&c.orientation);
+        let m = &c.shape.to_mat(&c.orientation);
         let p = c.position();
-        println!("sc vacate: {:?}", c);
         for y in 0..4 {
             for x in 0..4 {
                 if m[3-y][x] && self.0[y+p.y][x+p.x]  {
@@ -410,12 +414,11 @@ impl Game {
     }
 
     fn check_collision(&self, s: &Shape, p: &Point) -> bool {
-        let m = s.to_a(&self.shape_controller.orientation);
+        let m = s.to_mat(&self.shape_controller.orientation);
         for y in 0..4 {
             for x in 0..4 {
                 let cell = m[3-y][x];
                 if cell && self.board.0[y + p.y - 1][x + p.x] {
-                    println!("board collision! make a new shape.");
                     return true;
                 }
             }
@@ -427,7 +430,6 @@ impl Game {
         let s = &self.shape_controller.shape;
         let p = &self.shape_controller.position;
         if p.y == 0 {
-            println!("p.y is zero!  make a new shape.");
             return true;
         }
         return self.check_collision(s, p);
@@ -462,7 +464,6 @@ impl Game {
     
         self.shape_controller.down();
         self.board.occupy(&self.shape_controller);
-        println!("made next state");
     }
 
     pub fn start(&mut self) {
@@ -495,9 +496,7 @@ mod tests {
             vec![false, true, false, true, false, false, true],
         ];
         g.setup_board(config, Point{x: 1, y: 3}, true);
-        println!("{}", g.report());
         g.reset_board();
-        println!("{}", g.report());
         let mut trues = 0;
         for y in 0..HEIGHT {
             for x in 0..WIDTH {
@@ -517,7 +516,6 @@ mod tests {
         g.shape_controller.position = Point::new(3,3);
         g.start();
         g.rotate(Direction::Ccw);
-        println!("{}", g.report());
         assert!(g.board.0[3][3]);
         assert!(g.board.0[3][4]);
         assert!(g.board.0[3][5]);
@@ -553,13 +551,10 @@ mod tests {
         g.start();
         let b = &mut g.board;
         b.occupy(&g.shape_controller);
-        //println!("{}", g.board.report());
         assert!(g.board.0[3][8], "box 1 in the wrong spot!");
         assert!(g.board.0[4][8]);
         assert!(g.board.0[5][8]);
         assert!(g.board.0[3][9]);
-
-
     }
 
     #[test]
@@ -575,15 +570,13 @@ mod tests {
         assert!(g.board.0[4][8]);
         assert!(g.board.0[5][8]);
         assert!(g.board.0[3][9]);        
-        println!("{}", g.board.report());
-        
+
         g.rotate(Direction::Ccw);
         
         assert!(g.board.0[3][7]);
         assert!(g.board.0[3][8]);
         assert!(g.board.0[3][9]);
         assert!(g.board.0[4][9]);
-        println!("{}", g.board.report());
     }
 
     fn assert_el_at(c: &ShapeController, b: &Board) {
@@ -651,13 +644,43 @@ mod tests {
         g.shape_controller.position = Point::new(7,0);
         g.board.occupy(&g.shape_controller);
         g.start();
-        println!("{}", g.board.report());
         g.rotate(Direction::Cw);
-        println!("{}", g.board.report());
         for x in 0..10 {
             assert!(g.board.0[0][x], "expected whole line to be true!");
         }
+        assert!(g.shape_controller.position.x == 6, "expected a kick!");
     }
 
+    #[test]
+    fn kick_up() {
+        let mut g = Game::new();
+        let config = vec![
+            vec![false, false, false, false, false, false, false,  false, false, false],
+            vec![false, false, false, false, false, false, false,  false, false, false],
+            vec![false, false, false, false, false, false, false,  false, false, false],
+            vec![true,  false, true,  false, false,  true,  true,   true,  true,  true],
+            vec![true,  false, true,  false,  true,  true,  true,   true,  true,  true],
+            vec![true,  false, true,  false,  true,  true,  true,   true,  true,  true],
+            vec![true,  false, true,  false,  true,  true,  true,   true,  true,  true],
+            vec![true,  false, true,  false,  true,  true,  true,   true,  true,  true],
+        ];
+        g.setup_board(config, Point::new(0,0), false);
+        g.shape_controller.shape = Shape::Eye;
+        g.shape_controller.orientation = Orientation::Up;
+        g.shape_controller.position = Point::new(1, 2);
+        g.board.occupy(&g.shape_controller);
+        g.start();
+        for y in 2..4 {
+            assert!(g.board.0[y][1], "missing part of I shape");
+        }
+        g.rotate(Direction::Ccw);
+        for y in 0..3 {
+            assert!(!g.board.0[y][1], "found part of I when there shouldn't have been any!");
+        }
+        for x in 1..5 {
+            assert!(g.board.0[5][x], "missing part of I shape after rotation");
+        }
 
+
+    }
 }
