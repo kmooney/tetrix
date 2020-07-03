@@ -129,6 +129,36 @@ impl Game {
     pub fn start(&mut self) {
         self.state = GameState::Playing;
     }
+
+    // returns the clear count
+    pub fn clear_lines(&mut self) {
+        let mut clear_count = 0;
+        let mut y = 0;
+        'outer: while y < HEIGHT {            
+            for x in 0..WIDTH {
+                if !self.board.0[y][x] {
+                    y += 1;
+                    continue 'outer;
+                }
+            }
+            // clear the line here - dump the line above into this one, and do the same for
+            // each line up to the HEIGHT.
+            'fall: for z in y..HEIGHT - 1 {
+                let mut empty_line = true;
+                for x in 0..WIDTH {
+                    if self.board.0[z+1][x] {
+                        empty_line = false;
+                    }
+                    self.board.0[z][x] = self.board.0[z+1][x];
+                }
+                if empty_line {
+                    break 'fall;
+                }
+            }
+            clear_count += 1;
+        }
+        self.score += clear_count;
+    }
 }
 
 #[cfg(test)]
@@ -302,5 +332,35 @@ mod tests {
         assert!(5 == g.shape_controller().position().y, "position should be 5,1 but was {:?}", g.shape_controller().position());
         assert!(1 == g.shape_controller().position().x, "position should be 5,1 but was {:?}", g.shape_controller().position());
 
+    }
+
+    #[test]
+    fn clear_lines() {
+        let mut g = Game::new();
+        let config = vec![
+            vec![false, false, false, false, false, false, false,  false, false, false],
+            vec![false, false, false, false, false, false, false,  false, false, false],
+            vec![false, false, false, false, false, false, false,  false, false, false], 
+            vec![true,  false, true,   true,  true,  true,  true,   true,  true,  true],
+            vec![true,  false, true,   true,  true,  true,  true,   true,  true,  true],
+            vec![true,  false, true,   true,  true,  true,  true,   true,  true,  true],
+            vec![true,  false, true,   true,  true,  true,  true,   true,  true,  true],
+        ];
+        g.setup_board(config, Point::new(0,0), false);
+        g.shape_controller.set_shape(Shape::Eye);
+        g.shape_controller.set_orientation(Orientation::Up);
+        g.shape_controller.set_position(Point::new(1,0));
+        g.board.occupy(&g.shape_controller);
+        g.start();
+        assert!(g.score == 0, "line count should be zero");
+        println!("{}", g.board.report());
+
+        g.clear_lines();
+        assert!(g.score == 4, "line count should be four");
+        for y in 0..HEIGHT { 
+            for x in 0..WIDTH { 
+                assert!(!g.board.0[y][x], "board should be clear");
+            }
+        }
     }
 }
