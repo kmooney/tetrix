@@ -68,6 +68,7 @@ impl ShapeController {
     }
 
     pub fn any_collide(&self, b: &Board) -> bool {
+        if self.position.y == 0 {return true}
         let width = self.shape.width(&self.orientation);
         let position = &self.position;
         if position.x + width > WIDTH { return true }
@@ -117,6 +118,19 @@ impl ShapeController {
             Orientation::Left => Orientation::Down,
             Orientation::Down => Orientation::Right,
             Orientation::Right => Orientation::Up
+        }
+    }
+
+    pub fn drop(&mut self, b: &Board) {
+        loop {
+            if self.position.y != 0 {
+                self.position.y -= 1;
+            }
+
+            if self.any_collide(b) {
+                self.position.y += 1;
+                break;
+            }
         }
     }
 

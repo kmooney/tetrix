@@ -1,5 +1,6 @@
 use crate::{WIDTH, HEIGHT};
 use crate::shape_controller::ShapeController;
+use crate::shape::Point;
 
 pub struct Board(pub [[bool; WIDTH]; HEIGHT]);
 
@@ -54,4 +55,23 @@ impl Board {
             }
         }
     }
+
+    pub fn setup(&mut self, config: Vec<Vec<bool>>, position: Point, overwrite: bool) {
+        let mut x;
+        let mut y = 0;
+        let config_height = config.len();
+        for row in config.iter() {
+            x = 0;
+            for cell in row.iter() {
+                if overwrite {
+                    self.0[config_height - y + position.y - 1][x + position.x] = *cell;
+                } else {
+                    self.0[config_height - y + position.y - 1][x + position.x] |= *cell;
+                }
+                x += 1;
+            }
+            y += 1;
+        }
+    }
+
 }

@@ -49,22 +49,8 @@ impl Game {
         }
     }
 
-    pub fn setup_board(&mut self, config: Vec<Vec<bool>>, position: Point, overwrite: bool) {
-        let mut x;
-        let mut y = 0;
-        let config_height = config.len();
-        for row in config.iter() {
-            x = 0;
-            for cell in row.iter() {
-                if overwrite {
-                    self.board.0[config_height - y + position.y - 1][x + position.x] = *cell;
-                } else {
-                    self.board.0[config_height - y + position.y - 1][x + position.x] |= *cell;
-                }
-                x += 1;
-            }
-            y += 1;
-        }
+    pub fn board(&self) -> &Board {
+        return &self.board;
     }
 
     pub fn report(&self) -> String {
@@ -184,7 +170,7 @@ mod tests {
             vec![false, true, false, true, false, false, true],
             vec![false, true, false, true, false, false, true],
         ];
-        g.setup_board(config, Point{x: 1, y: 3}, true);
+        g.board.setup(config, Point{x: 1, y: 3}, true);
         g.reset_board();
         let mut trues = 0;
         for y in 0..HEIGHT {
@@ -273,7 +259,7 @@ mod tests {
             vec![false, false, false, false, true],
             vec![false, false, false, false, true],
         ];
-        g.setup_board(config, Point::new(0,0), false);
+        g.board.setup(config, Point::new(0,0), false);
         g.shape_controller.set_shape(Shape::El);
         g.shape_controller.set_position(Point::new(2, 1));
         g.shape_controller.set_orientation(Orientation::Up);
@@ -297,7 +283,7 @@ mod tests {
             vec![true,  true,  true,  false, true, true,  false, false, false, true],
             vec![true,  true,  true,  true,  true, true,  true,  false, true,  true],
         ];
-        g.setup_board(config, Point::new(0,0), false);
+        g.board.setup(config, Point::new(0,0), false);
         g.shape_controller.set_shape(Shape::Tee);
         g.shape_controller.set_orientation(Orientation::Right);
         g.shape_controller.set_position(Point::new(7,0));
@@ -319,7 +305,7 @@ mod tests {
             vec![true,  false, true,  false,  true,  true,  true,   true,  true,  true],
             vec![true,  false, true,  false,  true,  true,  true,   true,  true,  true],
         ];
-        g.setup_board(config, Point::new(0,0), false);
+        g.board.setup(config, Point::new(0,0), false);
         g.shape_controller.set_shape(Shape::Eye);
         g.shape_controller.set_orientation(Orientation::Up);
         g.shape_controller.set_position(Point::new(1, 2));
@@ -344,7 +330,7 @@ mod tests {
             vec![true,  false, true,   true,  true,  true,  true,   true,  true,  true],
             vec![true,  false, true,   true,  true,  true,  true,   true,  true,  true],
         ];
-        g.setup_board(config, Point::new(0,0), false);
+        g.board.setup(config, Point::new(0,0), false);
         g.shape_controller.set_shape(Shape::Eye);
         g.shape_controller.set_orientation(Orientation::Up);
         g.shape_controller.set_position(Point::new(1,0));
@@ -360,5 +346,28 @@ mod tests {
                 assert!(!g.board.0[y][x], "board should be clear");
             }
         }
+    }
+
+    #[test]
+    fn drop() {
+        let mut g = Game::new();
+        let mut b = Board::new();
+        let config = vec![
+            vec![false, false, false, false, false, false, false,  false, false, false],
+            vec![false, false, false, false, false, false, false,  false, false, false],
+            vec![false, false, false, false, false, false, false,  false, false, false], 
+            vec![true,  false, true,   true,  true,  true,  true,   true,  true,  true],
+            vec![true,  false, true,   true,  true,  true,  true,   true,  true,  true],
+            vec![true,  false, true,   true,  true,  true,  true,   true,  true,  true],
+            vec![true,  false, true,   true,  true,  true,  true,   true,  true,  true],
+        ];
+        b.setup(config, Point::new(0,0), false);
+        g.shape_controller.set_shape(Shape::El);
+        g.shape_controller.set_orientation(Orientation::Down);
+        g.shape_controller.set_position(Point::new(0,0));
+        g.start();
+        g.shape_controller().drop(&b);
+        assert!(g.shape_controller().position().x == 0, "x should be 0");
+        assert!(g.shape_controller().position().y == 1, "y should be 1");
     }
 }
