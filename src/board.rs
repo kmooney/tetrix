@@ -1,7 +1,8 @@
 use crate::{WIDTH, HEIGHT};
-use crate::shape_controller::ShapeController;
-use crate::shape::Point;
+use crate::shape::{Point, ShapeMat};
+use std::marker::Copy;
 
+#[derive(Debug, Copy, Clone)]
 pub struct Board(pub [[bool; WIDTH]; HEIGHT]);
 
 impl Board {
@@ -29,9 +30,7 @@ impl Board {
         board_report
     }
 
-    pub fn occupy(&mut self, c: &ShapeController) {
-        let m = c.shape().to_mat(c.orientation());
-        let p = c.position();
+    pub fn occupy(&mut self, m: &ShapeMat, p: &Point) {
         for y in 0..4 {
             for x in 0..4 {
                 // 0 is the bottom of the board
@@ -44,14 +43,20 @@ impl Board {
         }
     }
 
-    pub fn vacate(&mut self, c: &ShapeController) {
-        let m = &c.shape().to_mat(c.orientation());
-        let p = c.position();
+    pub fn vacate(&mut self, m: &ShapeMat, p: &Point) {
         for y in 0..4 {
             for x in 0..4 {
                 if m[3-y][x] && self.0[y+p.y][x+p.x]  {
                     self.0[y+p.y][x+p.x] = false;
                 }
+            }
+        }
+    }
+
+    pub fn reset(&mut self) {
+        for y in 0..HEIGHT {
+            for x in 0..WIDTH {
+                self.0[y][x] = false;
             }
         }
     }

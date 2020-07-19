@@ -14,7 +14,7 @@ impl Point {
 }
 
 
-type ShapeMat = [[bool; 4]; 4];
+pub type ShapeMat = [[bool; 4]; 4];
 
 #[derive(Debug)]
 pub enum Orientation {

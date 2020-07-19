@@ -1,4 +1,4 @@
-use crate::shape::{Shape, Orientation, Point};
+use crate::shape::{Shape, Orientation, Point, ShapeMat};
 use crate::board::Board;
 use crate::WIDTH;
 
@@ -15,11 +15,10 @@ impl Direction {
     }
 }
 
-#[derive(Debug)]
 pub struct ShapeController {
     orientation: Orientation,
     position: Point,
-    shape: Shape,
+    shape: Shape
 }
 
 impl ShapeController {
@@ -33,7 +32,7 @@ impl ShapeController {
         ShapeController {
             orientation: Orientation::Up,
             position: position,
-            shape: s
+            shape: s        
         }
     }
 
@@ -65,24 +64,6 @@ impl ShapeController {
         if self.position.y > 0 {
             self.position.y -= 1;
         }
-    }
-
-    pub fn any_collide(&self, b: &Board) -> bool {
-        if self.position.y == 0 {return true}
-        let width = self.shape.width(&self.orientation);
-        let position = &self.position;
-        if position.x + width > WIDTH { return true }
-        let mat = &self.shape.to_mat(&self.orientation);
-        for my in 0..3 {
-            for mx in 0..3 {
-                if position.x + mx >= WIDTH || mat[3 - my][mx] && b.0[position.y + my][position.x + mx] {
-                    return true
-                }   
-            }
-        }
-
-        return false
-
     }
 
     pub fn rotate(&mut self, d: Direction, b: &Board) {
@@ -121,6 +102,23 @@ impl ShapeController {
         }
     }
 
+    pub fn any_collide(&self, b: &Board) -> bool {
+        if self.position.y == 0 {return true}
+        let width = self.shape.width(&self.orientation);
+        let position = &self.position;
+        if position.x + width > WIDTH { return true }
+        let mat = &self.shape.to_mat(&self.orientation);
+        for my in 0..3 {
+            for mx in 0..3 {
+                if position.x + mx >= WIDTH || mat[3 - my][mx] && b.0[position.y + my][position.x + mx] {
+                    return true
+                }   
+            }
+        }
+
+        return false
+    }
+
     pub fn drop(&mut self, b: &Board) {
         loop {
             if self.position.y != 0 {
@@ -133,5 +131,4 @@ impl ShapeController {
             }
         }
     }
-
 }

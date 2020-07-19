@@ -1,9 +1,12 @@
 mod shape;
 mod shape_controller;
 mod board;
+mod event;
 use board::Board;
 use shape_controller::{ShapeController, Direction};
-use shape::{Shape, Point};
+use shape::{Shape, Point, ShapeMat};
+use std::rc::Rc;
+use std::cell::Cell;
 
 const VERSION: f32 = 0.01;
 const WIDTH: usize  = 10;
@@ -13,23 +16,23 @@ const HEIGHT: usize = 25;
 enum GameState {New, Playing, Over}
 
 pub struct Game {
-    board: Board,
     score: u32,
     shape_controller: ShapeController,
     next_shape: Shape,
     hold_shape: Option<Shape>,
     state: GameState,
+    pub board: Board
 }
 
 impl Game {
     pub fn new() -> Game {
         Game {
-            board: Board([[false; WIDTH]; HEIGHT]),
             score: 0,
             shape_controller: ShapeController::new(),
             next_shape: Shape::random(),
             hold_shape: None,
             state: GameState::New,
+            board: Board::new(),
         } 
     }
 
@@ -41,30 +44,20 @@ impl Game {
         return &self.shape_controller
     }
 
-    pub fn reset_board(&mut self) {
-        for y in 0..HEIGHT {
-            for x in 0..WIDTH {
-                self.board.0[y][x] = false;
-            }
-        }
-    }
-
-    pub fn board(&self) -> &Board {
-        return &self.board;
-    }
-
     pub fn report(&self) -> String {
+        let board = self.board;
         let current_piece_status = format!("{:?}", self.get_shape_controller().position());
         let current_piece_orientation = format!("shape = {:?}, orientation = {:?}", self.shape_controller.shape(), self.shape_controller.orientation());
-        return String::from(format!("T E T R I X version {}\n{}\n{}\n{}\nscore: {}\nstate:{:?}\n", VERSION, current_piece_status, current_piece_orientation, self.board.report(), self.score, self.state))
+        return String::from(format!("T E T R I X version {}\n{}\n{}\n{}\nscore: {}\nstate:{:?}\n", VERSION, current_piece_status, current_piece_orientation, board.report(), self.score, self.state))
     }
 
     fn check_collision(&self, s: &Shape, p: &Point) -> bool {
         let m = s.to_mat(&self.get_shape_controller().orientation());
+        let b = self.board;
         for y in 0..4 {
             for x in 0..4 {
                 let cell = m[3-y][x];
-                if cell && self.board.0[y + p.y - 1][x + p.x] {
+                if cell && b.0[y + p.y - 1][x + p.x] {
                     return true;
                 }
             }
@@ -88,9 +81,8 @@ impl Game {
     }
 
     pub fn rotate(&mut self, direction: Direction) {
-        let b = &mut self.board;
         let c = &mut self.shape_controller;
-        c.rotate(direction, b);
+        c.rotate(direction, &self.board);
     }
 
     pub fn next(&mut self) {
@@ -98,29 +90,38 @@ impl Game {
             GameState::Playing => {},
             _ => return,
         }
-        self.board.vacate(&self.shape_controller);
-
+        self.board.vacate(
+            &self.shape_controller.shape().to_mat(self.shape_controller.orientation()),
+            self.shape_controller.position()
+        );
+       
         if self.check_shape() {
             if self.check_over() {
                 self.state = GameState::Over;
             }
-            self.board.occupy(&self.shape_controller);
+            self.board.occupy(
+                &self.shape_controller.shape().to_mat(self.shape_controller.orientation()),
+                self.shape_controller.position()
+            );
             self.shape_controller = ShapeController::new();
+        } else {
+            self.shape_controller.down();
+            self.board.occupy(
+                &self.shape_controller.shape().to_mat(self.shape_controller.orientation()),
+                self.shape_controller.position()
+            );
         }
-    
-        self.shape_controller.down();
-        self.board.occupy(&self.shape_controller);
     }
 
     pub fn start(&mut self) {
         self.state = GameState::Playing;
     }
 
-    // returns the clear count
     pub fn clear_lines(&mut self) {
         let mut clear_count = 0;
         let mut y = 0;
-        'outer: while y < HEIGHT {            
+        
+        'outer: while y < HEIGHT {        
             for x in 0..WIDTH {
                 if !self.board.0[y][x] {
                     y += 1;
@@ -143,6 +144,7 @@ impl Game {
         }
         self.score += clear_count;
     }
+
 }
 
 #[cfg(test)]
@@ -170,12 +172,13 @@ mod tests {
             vec![false, true, false, true, false, false, true],
             vec![false, true, false, true, false, false, true],
         ];
-        g.board.setup(config, Point{x: 1, y: 3}, true);
-        g.reset_board();
+        let mut board = g.board;
+        board.setup(config, Point{x: 1, y: 3}, true);
+        board.reset();
         let mut trues = 0;
         for y in 0..HEIGHT {
             for x in 0..WIDTH {
-                match g.board.0[y][x] {
+                match board.0[y][x] {
                     true => trues += 1,
                     false => {}
                 }
@@ -187,12 +190,17 @@ mod tests {
     #[test]
     fn rotate() {
         let mut g = Game::new();
-        let mut b = Board::new();
+        let mut b = g.board;
+        
         g.shape_controller().set_shape(Shape::El);
         g.shape_controller().set_position(Point::new(3,3));
         g.start();
         g.rotate(Direction::Ccw);
-        b.occupy(g.shape_controller());
+        {
+            let mat = g.shape_controller.shape().to_mat(g.shape_controller.orientation());
+            let pos = g.shape_controller.position();
+            b.occupy(&mat, pos);
+        }
         assert!(b.0[3][3]);
         assert!(b.0[3][4]);
         assert!(b.0[3][5]);
@@ -216,12 +224,15 @@ mod tests {
         g.shape_controller.set_position(Point::new(8, 3));
         g.shape_controller.set_orientation(Orientation::Up);
         g.start();
-        let b = &mut g.board;
-        b.occupy(&g.shape_controller);
-        assert!(g.board.0[3][8], "box 1 in the wrong spot!");
-        assert!(g.board.0[4][8]);
-        assert!(g.board.0[5][8]);
-        assert!(g.board.0[3][9]);
+        let mut b = g.board;
+        b.occupy(
+            &g.shape_controller.shape().to_mat(g.shape_controller.orientation()),
+            g.shape_controller.position()
+        );
+        assert!(b.0[3][8], "box 1 in the wrong spot!");
+        assert!(b.0[4][8]);
+        assert!(b.0[5][8]);
+        assert!(b.0[3][9]);
     }
 
     #[test]
@@ -231,12 +242,15 @@ mod tests {
         g.shape_controller.set_position(Point::new(8, 3));
         g.shape_controller.set_orientation(Orientation::Up);
         g.start();
-        let b = &mut g.board;
-        b.occupy(&g.shape_controller);      
-        assert!(g.board.0[3][8]);
-        assert!(g.board.0[4][8]);
-        assert!(g.board.0[5][8]);
-        assert!(g.board.0[3][9]);        
+        let mut b = g.board;
+        b.occupy(
+            &g.shape_controller.shape().to_mat(g.shape_controller.orientation()),
+            g.shape_controller.position()
+        );      
+        assert!(b.0[3][8]);
+        assert!(b.0[4][8]);
+        assert!(b.0[5][8]);
+        assert!(b.0[3][9]);        
 
         g.rotate(Direction::Ccw);
         
@@ -334,11 +348,14 @@ mod tests {
         g.shape_controller.set_shape(Shape::Eye);
         g.shape_controller.set_orientation(Orientation::Up);
         g.shape_controller.set_position(Point::new(1,0));
-        g.board.occupy(&g.shape_controller);
+        g.board.occupy(
+            &g.shape_controller.shape().to_mat(g.shape_controller.orientation()),
+            g.shape_controller.position()
+        );
         g.start();
+     
         assert!(g.score == 0, "line count should be zero");
         println!("{}", g.board.report());
-
         g.clear_lines();
         assert!(g.score == 4, "line count should be four");
         for y in 0..HEIGHT { 
