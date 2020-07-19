@@ -15,21 +15,21 @@ impl Direction {
     }
 }
 
-pub struct ShapeController {
+pub struct ShapeState {
     orientation: Orientation,
     position: Point,
     shape: Shape
 }
 
-impl ShapeController {
-    pub fn new() -> ShapeController {
+impl ShapeState {
+    pub fn new() -> ShapeState {
         let s = Shape::random();
         let position = match s {
             Shape::Eye => Point{x: 3, y: 21},
             _ => Point{x: 4, y:21},
         };
 
-        ShapeController {
+        ShapeState {
             orientation: Orientation::Up,
             position: position,
             shape: s        

@@ -1,9 +1,9 @@
 mod shape;
-mod shape_controller;
+mod shape_state;
 mod board;
 mod event;
 use board::Board;
-use shape_controller::{ShapeController, Direction};
+use shape_state::{ShapeState, Direction};
 use shape::{Shape, Point, ShapeMat};
 use std::rc::Rc;
 use std::cell::Cell;
@@ -17,7 +17,7 @@ enum GameState {New, Playing, Over}
 
 pub struct Game {
     score: u32,
-    shape_controller: ShapeController,
+    shape_controller: ShapeState,
     next_shape: Shape,
     hold_shape: Option<Shape>,
     state: GameState,
@@ -28,7 +28,7 @@ impl Game {
     pub fn new() -> Game {
         Game {
             score: 0,
-            shape_controller: ShapeController::new(),
+            shape_controller: ShapeState::new(),
             next_shape: Shape::random(),
             hold_shape: None,
             state: GameState::New,
@@ -36,11 +36,11 @@ impl Game {
         } 
     }
 
-    pub fn shape_controller(&mut self) -> &mut ShapeController {
+    pub fn shape_controller(&mut self) -> &mut ShapeState {
         return &mut self.shape_controller;
     }
 
-    pub fn get_shape_controller(&self) -> &ShapeController {
+    pub fn get_shape_controller(&self) -> &ShapeState {
         return &self.shape_controller
     }
 
@@ -103,7 +103,7 @@ impl Game {
                 &self.shape_controller.shape().to_mat(self.shape_controller.orientation()),
                 self.shape_controller.position()
             );
-            self.shape_controller = ShapeController::new();
+            self.shape_controller = ShapeState::new();
         } else {
             self.shape_controller.down();
             self.board.occupy(
