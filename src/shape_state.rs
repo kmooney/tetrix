@@ -1,4 +1,4 @@
-use crate::shape::{Shape, Orientation, Point, ShapeMat};
+use crate::shape::{Shape, Orientation, Point};
 use crate::board::Board;
 use crate::WIDTH;
 
@@ -63,6 +63,24 @@ impl ShapeState {
     pub fn down(&mut self) {
         if self.position.y > 0 {
             self.position.y -= 1;
+        }
+    }
+
+    pub fn left(&mut self, b: &Board) {
+        if self.position.x > 0 {
+            self.position.x -= 1;
+        }
+        if self.any_collide(b) {
+            self.position.x += 1;
+        }
+    }
+
+    pub fn right(&mut self, b: &Board) {
+        if self.position.x <= WIDTH {
+            self.position.x += 1;
+        }
+        if self.any_collide(b) {
+            self.position.x -= 1;
         }
     }
 

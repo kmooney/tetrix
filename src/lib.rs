@@ -5,15 +5,17 @@ mod event;
 use board::Board;
 use shape_state::{ShapeState, Direction};
 use shape::{Shape, Point, ShapeMat};
-use std::rc::Rc;
-use std::cell::Cell;
+use std::time;
 
+use std::sync::mpsc::{Sender, Receiver}; 
+
+use event::{Input, Output};
 const VERSION: f32 = 0.01;
 const WIDTH: usize  = 10;
 const HEIGHT: usize = 25;
 
-#[derive(Debug)]
-enum GameState {New, Playing, Over}
+#[derive(Debug, PartialEq)]
+pub enum GameState {New, Playing, Over}
 
 pub struct Game {
     score: u32,
@@ -21,11 +23,12 @@ pub struct Game {
     next_shape: Shape,
     hold_shape: Option<Shape>,
     state: GameState,
-    pub board: Board
+    pub board: Board,
+    tx: Sender<Output>
 }
 
 impl Game {
-    pub fn new() -> Game {
+    pub fn new(tx : Sender<Output>) -> Game {
         Game {
             score: 0,
             shape_controller: ShapeState::new(),
@@ -33,7 +36,7 @@ impl Game {
             hold_shape: None,
             state: GameState::New,
             board: Board::new(),
-        } 
+            tx: tx        } 
     }
 
     pub fn shape_controller(&mut self) -> &mut ShapeState {
@@ -98,6 +101,7 @@ impl Game {
         if self.check_shape() {
             if self.check_over() {
                 self.state = GameState::Over;
+                self.tx.send(Output::GameOver).unwrap();
             }
             self.board.occupy(
                 &self.shape_controller.shape().to_mat(self.shape_controller.orientation()),
@@ -115,6 +119,7 @@ impl Game {
 
     pub fn start(&mut self) {
         self.state = GameState::Playing;
+        self.tx.send(Output::GameStarted).unwrap();
     }
 
     pub fn clear_lines(&mut self) {
@@ -147,6 +152,53 @@ impl Game {
 
 }
 
+use std::thread;
+use std::sync::mpsc::channel;
+
+pub fn game() -> (thread::JoinHandle<GameState>, Receiver<Output>, Sender<Input>) {
+    let (txo, rxo) = channel();
+    let (txi, rxi) = channel();
+
+    let h = thread::spawn(move|| {
+        let mut g = Game::new(txo);
+        while g.state != GameState::Over {
+            let mut check_messages = true;
+            while check_messages {
+                match rxi.try_recv() {
+                    Ok(r) => {
+                        match r {
+                            Input::StartGame => {
+                                g.start();
+                            },
+                            Input::TickGame => {
+                                g.next();
+                            },
+                            Input::ActiveLeft => {
+                                g.shape_controller.left(&g.board);
+                            },
+                            Input::ActiveRight => {
+                                g.shape_controller.right(&g.board);
+                            },
+                            Input::ActiveQuickDrop => {
+                                g.shape_controller.drop(&g.board);
+                            }
+                        }
+                    },
+                    Err(e) => {
+                        check_messages = false;
+                    }
+                };
+            }
+        }
+        g.state
+    });
+    return (h, rxo, txi);
+}
+
+
+// tests start here!!
+
+
 #[cfg(test)]
 mod tests {
     use crate::shape::Orientation;
@@ -157,8 +209,9 @@ mod tests {
         // when the game starts, there should be a shape controller with the current shape
         // and there should be a next shape.  
         // there should be no "hold" shape
+        let (tx, _rx) = channel();
+        let mut g = Game::new(tx);
 
-        let mut g = Game::new();
         match g.hold_shape {
             None => assert!(true),
             _ => assert!(false, "Hold shape should be unset at start")
@@ -189,7 +242,9 @@ mod tests {
 
     #[test]
     fn rotate() {
-        let mut g = Game::new();
+        let (tx, rx) = channel();
+
+        let mut g = Game::new(tx);
         let mut b = g.board;
         
         g.shape_controller().set_shape(Shape::El);
@@ -209,7 +264,9 @@ mod tests {
 
     #[test]
     fn wall_kick_l() {
-        let mut g = Game::new();
+        let (tx, rx) = channel();
+
+        let mut g = Game::new(tx);
         g.shape_controller().set_shape(Shape::El);
         g.shape_controller().set_position(Point::new(0, 3));
         g.start();
@@ -219,7 +276,9 @@ mod tests {
 
     #[test]
     fn flush_wall_r() {
-        let mut g = Game::new();
+        let (tx, rx) = channel();
+
+        let mut g = Game::new(tx);
         g.shape_controller.set_shape(Shape::El);
         g.shape_controller.set_position(Point::new(8, 3));
         g.shape_controller.set_orientation(Orientation::Up);
@@ -237,7 +296,9 @@ mod tests {
 
     #[test]
     fn wall_kick_r() {
-        let mut g = Game::new();
+        let (tx, rx) = channel();
+
+        let mut g = Game::new(tx);
         g.shape_controller.set_shape(Shape::El);
         g.shape_controller.set_position(Point::new(8, 3));
         g.shape_controller.set_orientation(Orientation::Up);
@@ -260,9 +321,11 @@ mod tests {
   
     #[test]
     fn internal_kick_r() {
-        // set up the game, but some junk in the board
+        // set up the game, put some junk in the board
         // kick off the junk.
-        let mut g = Game::new();
+        let (tx, rx) = channel();
+
+        let mut g = Game::new(tx);
         let config = vec![
             vec![false, false, false, false, true],
             vec![false, false, false, false, true],
@@ -286,7 +349,9 @@ mod tests {
 
     #[test]
     fn t_spin() {
-        let mut g = Game::new();
+        let (tx, rx) = channel();
+
+        let mut g = Game::new(tx);
         let config = vec![
             vec![false, false, false, false, false, false, false, false, false, false],
             vec![false, false, false, false, false, false, false, false, false, false],
@@ -308,7 +373,9 @@ mod tests {
 
     #[test]
     fn kick_up() {
-        let mut g = Game::new();
+        let (tx, rx) = channel();
+
+        let mut g = Game::new(tx);
         let config = vec![
             vec![false, false, false, false, false, false, false,  false, false, false],
             vec![false, false, false, false, false, false, false,  false, false, false],
@@ -334,7 +401,9 @@ mod tests {
 
     #[test]
     fn clear_lines() {
-        let mut g = Game::new();
+        let (tx, rx) = channel();
+
+        let mut g = Game::new(tx);
         let config = vec![
             vec![false, false, false, false, false, false, false,  false, false, false],
             vec![false, false, false, false, false, false, false,  false, false, false],
@@ -367,7 +436,9 @@ mod tests {
 
     #[test]
     fn drop() {
-        let mut g = Game::new();
+        let (tx, rx) = channel();
+
+        let mut g = Game::new(tx);
         let mut b = Board::new();
         let config = vec![
             vec![false, false, false, false, false, false, false,  false, false, false],
@@ -387,4 +458,41 @@ mod tests {
         assert!(g.shape_controller().position().x == 0, "x should be 0");
         assert!(g.shape_controller().position().y == 1, "y should be 1");
     }
+
+    #[test]
+    fn play() {
+        let (h, rx, txi) = crate::game();
+        txi.send(Input::StartGame).unwrap();
+        let txclock = txi.clone();
+        thread::spawn(move || {
+            while !txclock.send(Input::TickGame).is_err() {
+                thread::sleep(time::Duration::from_millis(1));
+            }
+        });
+        let v = h.join().unwrap();
+        assert!(v == GameState::Over, "Game should be over but was {:?}", v);
+    }
+
+    #[test]
+    fn read_events() {
+        let (h, rx, txi) = crate::game();
+        txi.send(Input::StartGame).unwrap();
+        match rx.recv() {
+            Ok(evt) => {
+                assert!(evt == Output::GameStarted, "First event should be game start.  Got {:?} instead", evt);
+            },
+            Err(_) => {
+                assert!(false, "Should have got event start; got error instead");
+            } 
+        };
+        let txclock = txi.clone();
+        thread::spawn(move || {
+            while !txclock.send(Input::TickGame).is_err() {
+                thread::sleep(time::Duration::from_millis(1));
+            }
+        });
+        let v = h.join().unwrap();
+    }
+
+
 }

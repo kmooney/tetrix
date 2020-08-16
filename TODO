@@ -1,7 +1,12 @@
 More to do on tetrix server:
 
+[x] make a test where the game plays itself and ends with no input
+
+[x] make a test where the game thread starts, and tranmits its state
+    but doesn't start playing until it receives a start signal.
+    then it plays itself to game-over
+
 play the game
-time awareness
+speed/time awareness - now ticks are sent.  no ticks? game doesn't advance.
 drop @ 2x 10x speed
-speed awareness
 garbage into board
