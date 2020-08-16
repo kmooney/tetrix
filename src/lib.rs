@@ -4,8 +4,7 @@ mod board;
 mod event;
 use board::Board;
 use shape_state::{ShapeState, Direction};
-use shape::{Shape, Point, ShapeMat};
-use std::time;
+use shape::{Shape, Point};
 
 use std::sync::mpsc::{Sender, Receiver}; 
 
@@ -184,7 +183,7 @@ pub fn game() -> (thread::JoinHandle<GameState>, Receiver<Output>, Sender<Input>
                             }
                         }
                     },
-                    Err(e) => {
+                    Err(_) => {
                         check_messages = false;
                     }
                 };
@@ -201,6 +200,7 @@ pub fn game() -> (thread::JoinHandle<GameState>, Receiver<Output>, Sender<Input>
 
 #[cfg(test)]
 mod tests {
+    use std::time;
     use crate::shape::Orientation;
     use super::*;
 
@@ -210,7 +210,7 @@ mod tests {
         // and there should be a next shape.  
         // there should be no "hold" shape
         let (tx, _rx) = channel();
-        let mut g = Game::new(tx);
+        let g = Game::new(tx);
 
         match g.hold_shape {
             None => assert!(true),
@@ -242,7 +242,7 @@ mod tests {
 
     #[test]
     fn rotate() {
-        let (tx, rx) = channel();
+        let (tx, _rx) = channel();
 
         let mut g = Game::new(tx);
         let mut b = g.board;
@@ -264,7 +264,7 @@ mod tests {
 
     #[test]
     fn wall_kick_l() {
-        let (tx, rx) = channel();
+        let (tx, _rx) = channel();
 
         let mut g = Game::new(tx);
         g.shape_controller().set_shape(Shape::El);
@@ -276,7 +276,7 @@ mod tests {
 
     #[test]
     fn flush_wall_r() {
-        let (tx, rx) = channel();
+        let (tx, _rx) = channel();
 
         let mut g = Game::new(tx);
         g.shape_controller.set_shape(Shape::El);
@@ -296,7 +296,7 @@ mod tests {
 
     #[test]
     fn wall_kick_r() {
-        let (tx, rx) = channel();
+        let (tx, _rx) = channel();
 
         let mut g = Game::new(tx);
         g.shape_controller.set_shape(Shape::El);
@@ -323,7 +323,7 @@ mod tests {
     fn internal_kick_r() {
         // set up the game, put some junk in the board
         // kick off the junk.
-        let (tx, rx) = channel();
+        let (tx, _rx) = channel();
 
         let mut g = Game::new(tx);
         let config = vec![
@@ -349,7 +349,7 @@ mod tests {
 
     #[test]
     fn t_spin() {
-        let (tx, rx) = channel();
+        let (tx, _rx) = channel();
 
         let mut g = Game::new(tx);
         let config = vec![
@@ -373,7 +373,7 @@ mod tests {
 
     #[test]
     fn kick_up() {
-        let (tx, rx) = channel();
+        let (tx, _rx) = channel();
 
         let mut g = Game::new(tx);
         let config = vec![
@@ -401,7 +401,7 @@ mod tests {
 
     #[test]
     fn clear_lines() {
-        let (tx, rx) = channel();
+        let (tx, _rx) = channel();
 
         let mut g = Game::new(tx);
         let config = vec![
@@ -436,7 +436,7 @@ mod tests {
 
     #[test]
     fn drop() {
-        let (tx, rx) = channel();
+        let (tx, _rx) = channel();
 
         let mut g = Game::new(tx);
         let mut b = Board::new();
@@ -461,7 +461,7 @@ mod tests {
 
     #[test]
     fn play() {
-        let (h, rx, txi) = crate::game();
+        let (h, _rx, txi) = crate::game();
         txi.send(Input::StartGame).unwrap();
         let txclock = txi.clone();
         thread::spawn(move || {
@@ -492,6 +492,7 @@ mod tests {
             }
         });
         let v = h.join().unwrap();
+        assert!(v == GameState::Over, "Game should be over but was {:?}", v);
     }
 
 
