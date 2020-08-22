@@ -23,6 +23,7 @@ pub struct Game {
     hold_shape: Option<Shape>,
     state: GameState,
     pub board: Board,
+    down_ready: bool,
     tx: Sender<Output>
 }
 
@@ -35,6 +36,7 @@ impl Game {
             hold_shape: None,
             state: GameState::New,
             board: Board::new(),
+            down_ready: false,
             tx: tx  
       } 
     }
@@ -60,6 +62,9 @@ impl Game {
         for y in 0..4 {
             for x in 0..4 {
                 let cell = m[3-y][x];
+                if cell && (x + p.x >= WIDTH) {
+                    return true;
+                }
                 if cell && b.0[y + p.y - 1][x + p.x] {
                     return true;
                 }
@@ -68,7 +73,7 @@ impl Game {
         return false;
     }
 
-    pub fn check_shape(&self) -> bool {
+    pub fn shape_collides(&self) -> bool {
         let s = &self.get_shape_controller().shape();
         let p = &self.get_shape_controller().position();
         if p.y == 0 {
@@ -77,7 +82,7 @@ impl Game {
         return self.check_collision(s, p);
     }
 
-    pub fn check_over(&self) -> bool {
+    pub fn check_game_over(&self) -> bool {
         let s = &self.get_shape_controller().shape();
         let p = &self.get_shape_controller().position();
         return p.y >= 20 && self.check_collision(s, p);
@@ -88,7 +93,21 @@ impl Game {
         c.rotate(direction, &self.board);
     }
 
-    pub fn next(&mut self) {
+    fn action(&mut self, i: Input) {
+        match i {
+            Input::Left => self.shape_controller.left(&self.board),
+            Input::Right => self.shape_controller.right(&self.board),
+            Input::Drop => self.shape_controller.drop(&self.board),
+            Input::Down => {},
+            Input::Hold => {},
+            Input::Cw => self.shape_controller.rotate(Direction::Cw, &self.board),
+            Input::Ccw => self.shape_controller.rotate(Direction::Ccw, &self.board),
+            Input::TickGame => {self.down_ready = true;},
+            _ => {}
+        }
+    }
+
+    pub fn next(&mut self, i: Input) {
         match self.state { 
             GameState::Playing => {},
             _ => return,
@@ -97,9 +116,11 @@ impl Game {
             &self.shape_controller.shape().to_mat(self.shape_controller.orientation()),
             self.shape_controller.position()
         );
-       
-        if self.check_shape() {
-            if self.check_over() {
+        
+        self.action(i);
+        
+        if self.shape_collides() {
+            if self.check_game_over() {
                 self.state = GameState::Over;
                 self.tx.send(Output::GameOver).unwrap();
             }
@@ -109,7 +130,10 @@ impl Game {
             );
             self.shape_controller = ShapeState::new();
         } else {
-            self.shape_controller.down();
+            if self.down_ready {
+                self.shape_controller.down();
+                self.down_ready = false;
+            }
             self.board.occupy(
                 &self.shape_controller.shape().to_mat(self.shape_controller.orientation()),
                 self.shape_controller.position()
@@ -171,17 +195,8 @@ pub fn game() -> (thread::JoinHandle<GameState>, Receiver<Output>, Sender<Input>
                             Input::StartGame => {
                                 g.start();
                             },
-                            Input::TickGame => {
-                                g.next();
-                            },
-                            Input::ActiveLeft => {
-                                g.shape_controller.left(&g.board);
-                            },
-                            Input::ActiveRight => {
-                                g.shape_controller.right(&g.board);
-                            },
-                            Input::ActiveQuickDrop => {
-                                g.shape_controller.drop(&g.board);
+                            _ => {
+                                g.next(r);
                             }
                         }
                     },
@@ -505,5 +520,41 @@ mod tests {
         assert!(v == GameState::Over, "Game should be over but was {:?}", v);
     }
 
+    #[test]
+    fn write_events() {
+        let (h, rx, tx) = crate::game();
+        tx.send(Input::StartGame).unwrap();
+        match rx.recv() {
+            Ok(evt) => {
+                assert!(evt == Output::GameStarted, "event should have been game start")
+            },
+            Err(_) => {
+                assert!(false, "there was an error after game start")
+            }
+        }
+
+        let txclock = tx.clone();
+        let txctrl = tx.clone();
+        thread::spawn(move || {
+            while !txclock.send(Input::TickGame).is_err() {
+                thread::sleep(time::Duration::from_millis(5));
+            }
+        });
+        thread::spawn(move || {
+            while !txctrl.send(Input::rand_control()).is_err() {
+                thread::sleep(time::Duration::from_millis(1));
+            }
+        });
+
+        while let Ok(rmsg) = rx.recv() {
+            match rmsg {
+                Output::BoardUpdate(b) => {print!("{}", b.report())},
+                _ => {println!("got some other message!")}
+            }
+        }
+
+
+        h.join().unwrap();
+    }
 
 }
