@@ -35,7 +35,8 @@ impl Game {
             hold_shape: None,
             state: GameState::New,
             board: Board::new(),
-            tx: tx        } 
+            tx: tx  
+      } 
     }
 
     pub fn shape_controller(&mut self) -> &mut ShapeState {
@@ -114,6 +115,7 @@ impl Game {
                 self.shape_controller.position()
             );
         }
+        self.tx.send(Output::BoardUpdate(self.board)).unwrap();
     }
 
     pub fn start(&mut self) {
@@ -491,6 +493,14 @@ mod tests {
                 thread::sleep(time::Duration::from_millis(1));
             }
         });
+
+        while let Ok(rmsg) = rx.recv() {
+            match rmsg {
+                Output::BoardUpdate(b) => {print!("{}", b.report())},
+                _ => {println!("got some other message!")}
+            }
+        }
+
         let v = h.join().unwrap();
         assert!(v == GameState::Over, "Game should be over but was {:?}", v);
     }

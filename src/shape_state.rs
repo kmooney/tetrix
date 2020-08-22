@@ -6,15 +6,6 @@ pub enum Direction {
     Ccw, Cw
 }
 
-impl Direction {
-    fn reverse(&self) -> Direction {
-        match self {
-            Direction::Ccw => Direction::Cw, 
-            Direction::Cw => Direction::Ccw,
-        }
-    }
-}
-
 pub struct ShapeState {
     orientation: Orientation,
     position: Point,

@@ -2,7 +2,7 @@ use crate::{WIDTH, HEIGHT};
 use crate::shape::{Point, ShapeMat};
 use std::marker::Copy;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Board(pub [[bool; WIDTH]; HEIGHT]);
 
 impl Board {
