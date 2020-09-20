@@ -5,8 +5,16 @@ More to do on tetrix server:
 [x] make a test where the game thread starts, and tranmits its state
     but doesn't start playing until it receives a start signal.
     then it plays itself to game-over
+[x] self-play the game
+[x] speed/time awareness - now ticks are sent.  no ticks? game doesn't advance.
 
-play the game
-speed/time awareness - now ticks are sent.  no ticks? game doesn't advance.
 drop @ 2x 10x speed
 garbage into board
+
+more output events for
+
+rotation
+succesfully moving the piece
+landing a piece
+score change
+line change
