@@ -537,12 +537,12 @@ mod tests {
         let txctrl = tx.clone();
         thread::spawn(move || {
             while !txclock.send(Input::TickGame).is_err() {
-                thread::sleep(time::Duration::from_millis(5));
+                thread::sleep(time::Duration::from_millis(10));
             }
         });
         thread::spawn(move || {
             while !txctrl.send(Input::rand_control()).is_err() {
-                thread::sleep(time::Duration::from_millis(1));
+                thread::sleep(time::Duration::from_millis(70));
             }
         });
 
