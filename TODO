@@ -10,7 +10,9 @@ More to do on tetrix server:
 [x] garbage into board
 
 
-drop @ 2x 10x speed
+drop @ 2x-10x speed
+add hold
+add next shape tests
 
 more output events for:
 
