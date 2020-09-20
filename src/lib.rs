@@ -557,4 +557,22 @@ mod tests {
         h.join().unwrap();
     }
 
+    #[test]
+    fn test_trash() {
+        let (_tx, _rx) = channel();
+        let g = Game::new(_tx);
+        let mut b = g.board;
+        let mut trash_count = 0;
+        b.trash(10);
+        for x in b.0.iter() {
+            for y in x.iter() {
+                if *y {
+                    trash_count += 1;
+                }
+            }
+        }
+        assert_eq!(trash_count, 10, "should be 10 trash, but there was {} trash", trash_count);
+
+    }
+
 }

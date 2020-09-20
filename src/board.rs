@@ -1,6 +1,7 @@
 use crate::{WIDTH, HEIGHT};
 use crate::shape::{Point, ShapeMat};
 use std::marker::Copy;
+use rand::Rng;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Board(pub [[bool; WIDTH]; HEIGHT]);
@@ -9,6 +10,14 @@ impl Board {
 
     pub fn new() -> Board {
         return Board([[false; WIDTH]; HEIGHT]);
+    }
+
+    pub fn trash(&mut self, amt: u8) {
+        for _ in 0..amt {
+            let x = rand::thread_rng().gen_range(0, WIDTH);
+            let y = rand::thread_rng().gen_range(0, HEIGHT);
+            self.0[y][x] = true;
+        }
     }
 
     pub fn report(&self) -> String {
