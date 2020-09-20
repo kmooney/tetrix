@@ -7,11 +7,12 @@ More to do on tetrix server:
     then it plays itself to game-over
 [x] self-play the game
 [x] speed/time awareness - now ticks are sent.  no ticks? game doesn't advance.
+[x] garbage into board
+
 
 drop @ 2x 10x speed
-garbage into board
 
-more output events for
+more output events for:
 
 rotation
 succesfully moving the piece
