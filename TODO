@@ -8,9 +8,8 @@ More to do on tetrix server:
 [x] self-play the game
 [x] speed/time awareness - now ticks are sent.  no ticks? game doesn't advance.
 [x] garbage into board
+[x] drop @ 2x-10x speed
 
-
-drop @ 2x-10x speed
 add hold
 add next shape tests
 
