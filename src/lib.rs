@@ -23,6 +23,7 @@ pub struct Game {
     hold_shape: Option<Shape>,
     state: GameState,
     pub board: Board,
+    double_down: bool,
     down_ready: bool,
     tx: Sender<Output>
 }
@@ -36,6 +37,7 @@ impl Game {
             hold_shape: None,
             state: GameState::New,
             board: Board::new(),
+            double_down: false,
             down_ready: false,
             tx: tx  
       } 
@@ -94,11 +96,12 @@ impl Game {
     }
 
     fn action(&mut self, i: Input) {
+        self.double_down = false;
         match i {
             Input::Left => self.shape_controller.left(&self.board),
             Input::Right => self.shape_controller.right(&self.board),
             Input::Drop => self.shape_controller.drop(&self.board),
-            Input::Down => {},
+            Input::Down => {self.double_down = true},
             Input::Hold => {},
             Input::Cw => self.shape_controller.rotate(Direction::Cw, &self.board),
             Input::Ccw => self.shape_controller.rotate(Direction::Ccw, &self.board),
@@ -118,26 +121,32 @@ impl Game {
         );
         
         self.action(i);
-        
-        if self.shape_collides() {
-            if self.check_game_over() {
-                self.state = GameState::Over;
-                self.tx.send(Output::GameOver).unwrap();
+        let count = match self.double_down {
+            true => 2,
+            false => 1
+        };
+
+        for _i in 0..count {
+            if self.shape_collides() {
+                if self.check_game_over() {
+                    self.state = GameState::Over;
+                    self.tx.send(Output::GameOver).unwrap();
+                }
+                self.board.occupy(
+                    &self.shape_controller.shape().to_mat(self.shape_controller.orientation()),
+                    self.shape_controller.position()
+                );
+                self.shape_controller = ShapeState::new();
+            } else {
+                if self.down_ready {
+                    self.shape_controller.down();
+                    self.down_ready = false;
+                }
+                self.board.occupy(
+                    &self.shape_controller.shape().to_mat(self.shape_controller.orientation()),
+                    self.shape_controller.position()
+                );
             }
-            self.board.occupy(
-                &self.shape_controller.shape().to_mat(self.shape_controller.orientation()),
-                self.shape_controller.position()
-            );
-            self.shape_controller = ShapeState::new();
-        } else {
-            if self.down_ready {
-                self.shape_controller.down();
-                self.down_ready = false;
-            }
-            self.board.occupy(
-                &self.shape_controller.shape().to_mat(self.shape_controller.orientation()),
-                self.shape_controller.position()
-            );
         }
         self.tx.send(Output::BoardUpdate(self.board)).unwrap();
     }
