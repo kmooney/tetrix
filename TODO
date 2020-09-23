@@ -11,6 +11,7 @@ More to do on tetrix server:
 [x] drop @ 2x-10x speed
 
 add hold
+add restore hold, too!
 add next shape tests
 
 more output events for:
