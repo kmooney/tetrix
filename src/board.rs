@@ -14,9 +14,15 @@ impl Board {
 
     pub fn trash(&mut self, amt: u8) {
         for _ in 0..amt {
-            let x = rand::thread_rng().gen_range(0, WIDTH);
-            let y = rand::thread_rng().gen_range(0, HEIGHT);
-            self.0[y][x] = true;
+            let mut done = false;
+            while !done {
+                let x = rand::thread_rng().gen_range(0, WIDTH);
+                let y = rand::thread_rng().gen_range(0, HEIGHT);
+                if self.0[y][x] == false {
+                    done = true;
+                    self.0[y][x] = true;
+                }
+            }
         }
     }
 
