@@ -102,7 +102,10 @@ impl Game {
             Input::Right => self.shape_controller.right(&self.board),
             Input::Drop => self.shape_controller.drop(&self.board),
             Input::Down => {self.double_down = true},
-            Input::Hold => {},
+            Input::Hold => {
+                self.hold_shape = Some(self.shape_controller.shape());
+                self.shape_controller = ShapeState::new();
+            },
             Input::Cw => self.shape_controller.rotate(Direction::Cw, &self.board),
             Input::Ccw => self.shape_controller.rotate(Direction::Ccw, &self.board),
             Input::TickGame => {self.down_ready = true;},

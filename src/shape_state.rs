@@ -39,8 +39,8 @@ impl ShapeState {
         self.orientation = o;
     }
 
-    pub fn shape(&self) -> &Shape {
-        return &self.shape;
+    pub fn shape(&self) -> Shape {
+        return self.shape;
     }
 
     pub fn position(&self) -> &Point {

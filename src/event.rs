@@ -18,6 +18,7 @@ pub enum Input {
     Down,
     Drop,
     Hold,
+    RestoreHold,
     Cw,
     Ccw,
 }

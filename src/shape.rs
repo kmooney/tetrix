@@ -1,4 +1,5 @@
 use rand::Rng;
+use std::marker::Copy;
 
 
 #[derive(Debug)]
@@ -22,7 +23,7 @@ pub enum Orientation {
 }
 
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum Shape {
     Eye, El, ElInv, Square, Zee, ZeeInv, Tee
 }
