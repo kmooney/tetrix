@@ -1,4 +1,5 @@
 use crate::board::Board;
+use crate::shape::Shape;
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum Output {
@@ -6,7 +7,8 @@ pub enum Output {
     GameStarted,
     GameRunning,
     ScoreChanged,
-    BoardUpdate(Board)
+    BoardUpdate(Board),
+    HeldShape(Shape)
 }
 
 #[derive(Clone, PartialEq, Debug)]

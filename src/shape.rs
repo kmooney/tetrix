@@ -23,7 +23,7 @@ pub enum Orientation {
 }
 
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Shape {
     Eye, El, ElInv, Square, Zee, ZeeInv, Tee
 }

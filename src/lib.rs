@@ -105,6 +105,7 @@ impl Game {
             Input::Hold => {
                 self.hold_shape = Some(self.shape_controller.shape());
                 self.shape_controller = ShapeState::new();
+                self.tx.send(Output::HeldShape(self.hold_shape.unwrap())).unwrap();
             },
             Input::Cw => self.shape_controller.rotate(Direction::Cw, &self.board),
             Input::Ccw => self.shape_controller.rotate(Direction::Ccw, &self.board),
@@ -565,12 +566,11 @@ mod tests {
             }
         }
 
-
         h.join().unwrap();
     }
 
     #[test]
-    fn test_trash() {
+    fn trasheroonie() {
         let (_tx, _rx) = channel();
         let g = Game::new(_tx);
         let mut b = g.board;
@@ -585,6 +585,55 @@ mod tests {
         }
         assert_eq!(trash_count, 10, "should be 10 trash, but there was {} trash", trash_count);
 
+    }
+
+    #[test]
+    fn holds() {
+        println!("running hold test");
+        let (h, rx, tx) = crate::game();
+        tx.send(Input::StartGame).unwrap();
+        println!("setting up!");
+        match rx.recv() {
+            Ok(_) => {
+            },
+            Err(_) => {
+                assert!(false, "there was an error after game start")
+            }
+        }
+
+        let txctrl = tx.clone();
+        let txclock = tx.clone();
+
+        thread::spawn(move || {
+            while !txclock.send(Input::TickGame).is_err() {
+                thread::sleep(time::Duration::from_millis(1));
+            }
+        });
+
+
+        txctrl.send(Input::Hold).unwrap();
+        let mut done = false;
+        let mut counter = 0;
+        while !done {
+            println!("receiving..");
+            match rx.recv() {
+                Ok(response) => match response {
+                    Output::HeldShape(shape) => {
+                        println!("shape was {:?}", shape);
+                        assert!(true, "we held the shape: {:?}", shape);
+                        done = true
+                    },
+                    _ => {} 
+                },
+                Err(_) => {
+                    assert!(false, "well, fuck right off. we got an error response and that should be covered by another test.");
+                }
+            }
+            counter = counter + 1;
+            assert!(counter < 10, "we expected a response about holding the shape and did not get one :(");
+        }
+        
+        h.join().unwrap();
     }
 
 }
