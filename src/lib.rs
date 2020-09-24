@@ -104,7 +104,8 @@ impl Game {
             Input::Down => {self.double_down = true},
             Input::Hold => {
                 self.hold_shape = Some(self.shape_controller.shape());
-                self.shape_controller = ShapeState::new();
+                self.shape_controller = ShapeState::new_from_shape(self.next_shape);
+                self.next_shape = Shape::random();
                 self.tx.send(Output::HeldShape(self.hold_shape.unwrap())).unwrap();
             },
             Input::RestoreHold => {
@@ -151,7 +152,8 @@ impl Game {
                     &self.shape_controller.shape().to_mat(self.shape_controller.orientation()),
                     self.shape_controller.position()
                 );
-                self.shape_controller = ShapeState::new();
+                self.shape_controller = ShapeState::new_from_shape(self.next_shape);
+                self.next_shape = Shape::random();
             } else {
                 if self.down_ready {
                     self.shape_controller.down();
