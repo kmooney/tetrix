@@ -8,7 +8,8 @@ pub enum Output {
     GameRunning,
     ScoreChanged,
     BoardUpdate(Board),
-    HeldShape(Shape)
+    HeldShape(Shape),
+    RestoredShape(Shape)
 }
 
 #[derive(Clone, PartialEq, Debug)]

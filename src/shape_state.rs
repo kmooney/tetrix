@@ -13,8 +13,7 @@ pub struct ShapeState {
 }
 
 impl ShapeState {
-    pub fn new() -> ShapeState {
-        let s = Shape::random();
+    pub fn new_from_shape(s: Shape) -> ShapeState {
         let position = match s {
             Shape::Eye => Point{x: 3, y: 21},
             _ => Point{x: 4, y:21},
@@ -25,6 +24,11 @@ impl ShapeState {
             position: position,
             shape: s        
         }
+    }
+
+    pub fn new() -> ShapeState {
+        let s = Shape::random();
+        ShapeState::new_from_shape(s)
     }
 
     pub fn set_shape(&mut self, s: Shape) {
