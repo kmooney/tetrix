@@ -10,8 +10,8 @@ More to do on tetrix server:
 [x] garbage into board
 [x] drop @ 2x-10x speed
 [x] add hold
+[x] add restore hold, too!
 
-add restore hold, too!
 add next shape tests
 
 more output events for:
