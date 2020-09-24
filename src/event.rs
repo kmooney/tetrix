@@ -9,7 +9,8 @@ pub enum Output {
     ScoreChanged,
     BoardUpdate(Board),
     HeldShape(Shape),
-    RestoredShape(Shape)
+    RestoredShape(Shape),
+    NextShape(Shape)
 }
 
 #[derive(Clone, PartialEq, Debug)]

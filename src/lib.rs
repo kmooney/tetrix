@@ -106,6 +106,7 @@ impl Game {
                 self.hold_shape = Some(self.shape_controller.shape());
                 self.shape_controller = ShapeState::new_from_shape(self.next_shape);
                 self.next_shape = Shape::random();
+                self.tx.send(Output::NextShape(self.next_shape)).unwrap();
                 self.tx.send(Output::HeldShape(self.hold_shape.unwrap())).unwrap();
             },
             Input::RestoreHold => {
@@ -154,6 +155,7 @@ impl Game {
                 );
                 self.shape_controller = ShapeState::new_from_shape(self.next_shape);
                 self.next_shape = Shape::random();
+                self.tx.send(Output::NextShape(self.next_shape)).unwrap();
             } else {
                 if self.down_ready {
                     self.shape_controller.down();
@@ -675,6 +677,7 @@ mod tests {
         let mut done = false;
         let mut counter = 0;
         let mut held_shape = None;
+        let mut got_next_event = false;
         while !done {
             println!("receiving..");
             match rx.recv() {
@@ -685,6 +688,10 @@ mod tests {
                         done = true;
                         held_shape = Some(shape);
                     },
+                    Output::NextShape(shape) => {
+                        println!("next shape is now {:?}", shape);
+                        got_next_event = true;
+                    }
                     _ => {} 
                 },
                 Err(_) => {
@@ -710,7 +717,8 @@ mod tests {
                 Err(_) => {assert!(false, "the game probably ended with no RestoredShape response")}
             }
         }
-        
+
+        assert!(got_next_event, "we never got a next event.  odd...");
         h.join().unwrap();
     }
 
