@@ -59,7 +59,7 @@ impl Game {
     }
 
     fn check_collision(&self, s: &Shape, p: &Point) -> bool {
-        let m = s.to_mat(&self.get_shape_controller().orientation());
+        let m = s.to_mat(self.get_shape_controller().orientation());
         let b = self.board;
         for y in 0..4 {
             for x in 0..4 {
@@ -93,13 +93,20 @@ impl Game {
     pub fn rotate(&mut self, direction: Direction) {
         let c = &mut self.shape_controller;
         c.rotate(direction, &self.board);
+        self.tx.send(Output::RotatedShape(c.orientation())).unwrap();
     }
 
     fn action(&mut self, i: Input) {
         self.double_down = false;
         match i {
-            Input::Left => self.shape_controller.left(&self.board),
-            Input::Right => self.shape_controller.right(&self.board),
+            Input::Left => match self.shape_controller.left(&self.board) {
+                true => self.tx.send(Output::MovedShape).unwrap(),
+                false => {}
+            },
+            Input::Right => match self.shape_controller.right(&self.board) {
+                true => self.tx.send(Output::MovedShape).unwrap(),
+                false => {}
+            },
             Input::Drop => self.shape_controller.drop(&self.board),
             Input::Down => {self.double_down = true},
             Input::Hold => {
@@ -158,7 +165,10 @@ impl Game {
                 self.tx.send(Output::NextShape(self.next_shape)).unwrap();
             } else {
                 if self.down_ready {
-                    self.shape_controller.down();
+                    match self.shape_controller.down() {
+                        true => self.tx.send(Output::MovedShape).unwrap(),
+                        false => {}
+                    }
                     self.down_ready = false;
                 }
                 self.board.occupy(

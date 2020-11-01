@@ -2,6 +2,7 @@ use crate::shape::{Shape, Orientation, Point};
 use crate::board::Board;
 use crate::WIDTH;
 
+
 pub enum Direction {
     Ccw, Cw
 }
@@ -51,32 +52,38 @@ impl ShapeState {
         return &self.position;
     }
 
-    pub fn orientation(&self) -> &Orientation {
-        return &self.orientation;
+    pub fn orientation(&self) -> Orientation {
+        return self.orientation;
     }
 
-    pub fn down(&mut self) {
+    pub fn down(&mut self) -> bool {
+        let startpos = self.position.y;
         if self.position.y > 0 {
             self.position.y -= 1;
         }
+        return startpos != self.position.y;
     }
 
-    pub fn left(&mut self, b: &Board) {
+    pub fn left(&mut self, b: &Board) -> bool {
+        let startpos = self.position.x;
         if self.position.x > 0 {
             self.position.x -= 1;
         }
         if self.any_collide(b) {
             self.position.x += 1;
         }
+        return startpos != self.position.x
     }
 
-    pub fn right(&mut self, b: &Board) {
+    pub fn right(&mut self, b: &Board) -> bool {
+        let startpos = self.position.x;
         if self.position.x <= WIDTH {
             self.position.x += 1;
         }
         if self.any_collide(b) {
             self.position.x -= 1;
         }
+        return startpos != self.position.x;
     }
 
     pub fn rotate(&mut self, d: Direction, b: &Board) {
@@ -84,6 +91,7 @@ impl ShapeState {
             Direction::Ccw => self.rotate_ccw(),
             Direction::Cw => self.rotate_cw()
         }
+
 
         loop {
             if !self.any_collide(b) { return }
@@ -120,7 +128,7 @@ impl ShapeState {
         let width = self.shape.width(&self.orientation);
         let position = &self.position;
         if position.x + width > WIDTH { return true }
-        let mat = &self.shape.to_mat(&self.orientation);
+        let mat = &self.shape.to_mat(self.orientation);
         for my in 0..3 {
             for mx in 0..3 {
                 if position.x + mx >= WIDTH || mat[3 - my][mx] && b.0[position.y + my][position.x + mx] {

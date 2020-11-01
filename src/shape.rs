@@ -17,11 +17,10 @@ impl Point {
 
 pub type ShapeMat = [[bool; 4]; 4];
 
-#[derive(Debug)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Orientation {
     Up, Down, Left, Right,
 }
-
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Shape {
@@ -62,7 +61,7 @@ impl Shape {
         }
     }
 
-    pub fn to_mat(&self, o: &Orientation) -> ShapeMat {
+    pub fn to_mat(&self, o: Orientation) -> ShapeMat {
         match self {
             Shape::Tee => match o {
                 Orientation::Up => [

@@ -1,5 +1,6 @@
 use crate::board::Board;
 use crate::shape::Shape;
+use crate::shape::Orientation;
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum Output {
@@ -10,7 +11,9 @@ pub enum Output {
     BoardUpdate(Board),
     HeldShape(Shape),
     RestoredShape(Shape),
-    NextShape(Shape)
+    NextShape(Shape),
+    RotatedShape(Orientation),
+    MovedShape,
 }
 
 #[derive(Clone, PartialEq, Debug)]

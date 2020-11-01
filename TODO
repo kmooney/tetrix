@@ -11,13 +11,20 @@ More to do on tetrix server:
 [x] drop @ 2x-10x speed
 [x] add hold
 [x] add restore hold, too!
-
-add next shape tests
+[x] add next shape tests
+[x] rotation
+[x] succesfully moving the piece - this includes DOWN.  does that actually make sense?
 
 more output events for:
 
-rotation
-succesfully moving the piece
 landing a piece
 score change
 line change
+
+
+horizon:
+
+first clients
+SDL? web?  if a web client, how to build a server?
+multiple instances running simultaneously
+
