@@ -1,7 +1,6 @@
 More to do on tetrix server:
 
 [x] make a test where the game plays itself and ends with no input
-
 [x] make a test where the game thread starts, and tranmits its state
     but doesn't start playing until it receives a start signal.
     then it plays itself to game-over
