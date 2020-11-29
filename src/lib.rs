@@ -162,6 +162,7 @@ impl Game {
                 );
                 self.shape_controller = ShapeState::new_from_shape(self.next_shape);
                 self.next_shape = Shape::random();
+                self.tx.send(Output::ShapeLocked(self.shape_controller.shape())).unwrap();
                 self.tx.send(Output::NextShape(self.next_shape)).unwrap();
             } else {
                 if self.down_ready {
@@ -558,9 +559,7 @@ mod tests {
         assert!(v == GameState::Over, "Game should be over but was {:?}", v);
     }
 
-    #[test]
-    fn write_events() {
-        let (h, rx, tx) = crate::game();
+    fn self_play(rx: Receiver<Output>, tx: Sender<Input>, log: &mut std::vec::Vec<Output>) {
         tx.send(Input::StartGame).unwrap();
         match rx.recv() {
             Ok(evt) => {
@@ -570,7 +569,6 @@ mod tests {
                 assert!(false, "there was an error after game start")
             }
         }
-
         let txclock = tx.clone();
         let txctrl = tx.clone();
         thread::spawn(move || {
@@ -578,6 +576,7 @@ mod tests {
                 thread::sleep(time::Duration::from_millis(10));
             }
         });
+
         thread::spawn(move || {
             while !txctrl.send(Input::rand_control()).is_err() {
                 thread::sleep(time::Duration::from_millis(70));
@@ -585,12 +584,23 @@ mod tests {
         });
 
         while let Ok(rmsg) = rx.recv() {
+            log.push(rmsg.clone());
             match rmsg {
                 Output::BoardUpdate(b) => {print!("{}", b.report())},
                 _ => {println!("got some other message!")}
             }
         }
+    }
 
+    #[test]
+    fn write_events() {
+        let (h, rx, tx) = crate::game();
+        let mut v = Vec::new();
+
+        self_play(rx,tx,&mut v);
+
+        assert!(v.len() > 0, "expect the log to contain some output events");
+        
         h.join().unwrap();
     }
 
@@ -724,7 +734,7 @@ mod tests {
                     },
                    _ => {}
                 },
-                Err(_) => {assert!(false, "the game probably ended with no RestoredShape response")}
+                Err(_) => {assert!(false, "the game probably ended with no RestoredShape reponse")}
             }
         }
 
@@ -732,4 +742,25 @@ mod tests {
         h.join().unwrap();
     }
 
+    #[test]
+    fn shape_lock() {
+        let (h, rx, tx) = crate::game();
+        let mut v = Vec::new();
+
+        self_play(rx, tx, &mut v);
+
+        assert!(v.len() > 0, "expect the log to contain some output events");
+
+        let mut got_it = false;
+        for o in v.iter() {
+            match o {
+                Output::ShapeLocked(_s) => {got_it = true;},
+                _ => {}
+            }
+        }
+
+        assert!(got_it, "we shoulda got a ShapeLocked event");
+
+        h.join().unwrap();
+    }
 }

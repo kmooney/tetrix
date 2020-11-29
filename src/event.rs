@@ -14,6 +14,9 @@ pub enum Output {
     NextShape(Shape),
     RotatedShape(Orientation),
     MovedShape,
+    ShapeLocked(Shape),
+    LineCompleted,
+    ScoreUpdate(i32)
 }
 
 #[derive(Clone, PartialEq, Debug)]

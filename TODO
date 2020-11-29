@@ -14,17 +14,14 @@ More to do on tetrix server:
 [x] add next shape tests
 [x] rotation
 [x] succesfully moving the piece - this includes DOWN.  does that actually make sense?
-
-more output events for:
-
-landing a piece
-score change
-line change
-
+[x] landing a piece (ShapeLocked event)
+[ ] score change / completion event.  should score be kept by client?
+[ ] line change
 
 horizon:
 
-first clients
+API + first clients
+API definition
 SDL? web?  if a web client, how to build a server?
 multiple instances running simultaneously
 
