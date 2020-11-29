@@ -15,7 +15,7 @@ pub enum Output {
     MovedShape,
     ShapeLocked(Shape),
     LineCompleted(u8), // how many lines?
-    ScoreUpdate(u32)
+    ScoreUpdate(u32),
 }
 
 #[derive(Clone, PartialEq, Debug)]
