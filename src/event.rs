@@ -7,7 +7,6 @@ pub enum Output {
     GameOver,
     GameStarted,
     GameRunning,
-    ScoreChanged,
     BoardUpdate(Board),
     HeldShape(Shape),
     RestoredShape(Shape),
@@ -15,8 +14,8 @@ pub enum Output {
     RotatedShape(Orientation),
     MovedShape,
     ShapeLocked(Shape),
-    LineCompleted,
-    ScoreUpdate(i32)
+    LineCompleted(u8), // how many lines?
+    ScoreUpdate(u32)
 }
 
 #[derive(Clone, PartialEq, Debug)]

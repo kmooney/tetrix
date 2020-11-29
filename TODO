@@ -15,8 +15,8 @@ More to do on tetrix server:
 [x] rotation
 [x] succesfully moving the piece - this includes DOWN.  does that actually make sense?
 [x] landing a piece (ShapeLocked event)
-[ ] score change / completion event.  should score be kept by client?
-[ ] line change
+[x] line completed event
+[x] score change event - include the new score.  should score be kept by client?
 
 horizon:
 

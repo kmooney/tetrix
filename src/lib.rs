@@ -163,6 +163,7 @@ impl Game {
                 self.shape_controller = ShapeState::new_from_shape(self.next_shape);
                 self.next_shape = Shape::random();
                 self.tx.send(Output::ShapeLocked(self.shape_controller.shape())).unwrap();
+                self.clear_lines();
                 self.tx.send(Output::NextShape(self.next_shape)).unwrap();
             } else {
                 if self.down_ready {
@@ -187,7 +188,7 @@ impl Game {
     }
 
     pub fn clear_lines(&mut self) {
-        let mut clear_count = 0;
+        let mut clear_count : u8 = 0;
         let mut y = 0;
         
         'outer: while y < HEIGHT {        
@@ -211,7 +212,10 @@ impl Game {
             }
             clear_count += 1;
         }
-        self.score += clear_count;
+        // TODO: more complex score calculation
+        self.score += clear_count as u32;
+        self.tx.send(Output::ScoreUpdate(self.score)).unwrap();
+        self.tx.send(Output::LineCompleted(clear_count)).unwrap();
     }
 
 }
@@ -251,7 +255,7 @@ pub fn game() -> (thread::JoinHandle<GameState>, Receiver<Output>, Sender<Input>
 }
 
 
-// tests start here!!
+// tests start here
 
 
 #[cfg(test)]
@@ -559,7 +563,7 @@ mod tests {
         assert!(v == GameState::Over, "Game should be over but was {:?}", v);
     }
 
-    fn self_play(rx: Receiver<Output>, tx: Sender<Input>, log: &mut std::vec::Vec<Output>) {
+    fn self_play(rx: Receiver<Output>, tx: Sender<Input>, no_input: bool, log: &mut std::vec::Vec<Output>) {
         tx.send(Input::StartGame).unwrap();
         match rx.recv() {
             Ok(evt) => {
@@ -570,24 +574,26 @@ mod tests {
             }
         }
         let txclock = tx.clone();
-        let txctrl = tx.clone();
+        let txctrl = tx.clone();        
         thread::spawn(move || {
             while !txclock.send(Input::TickGame).is_err() {
                 thread::sleep(time::Duration::from_millis(10));
             }
         });
 
-        thread::spawn(move || {
-            while !txctrl.send(Input::rand_control()).is_err() {
-                thread::sleep(time::Duration::from_millis(70));
-            }
-        });
+        if !no_input {
+            thread::spawn(move || {
+                while !txctrl.send(Input::rand_control()).is_err() {
+                    thread::sleep(time::Duration::from_millis(70));
+                }
+            });
+        }
 
         while let Ok(rmsg) = rx.recv() {
             log.push(rmsg.clone());
             match rmsg {
                 Output::BoardUpdate(b) => {print!("{}", b.report())},
-                _ => {println!("got some other message!")}
+                x => {println!("got some other message: {:?}", x)}
             }
         }
     }
@@ -597,7 +603,7 @@ mod tests {
         let (h, rx, tx) = crate::game();
         let mut v = Vec::new();
 
-        self_play(rx,tx,&mut v);
+        self_play(rx,tx, false, &mut v);
 
         assert!(v.len() > 0, "expect the log to contain some output events");
         
@@ -747,7 +753,7 @@ mod tests {
         let (h, rx, tx) = crate::game();
         let mut v = Vec::new();
 
-        self_play(rx, tx, &mut v);
+        self_play(rx, tx, false, &mut v);
 
         assert!(v.len() > 0, "expect the log to contain some output events");
 
@@ -761,6 +767,70 @@ mod tests {
 
         assert!(got_it, "we shoulda got a ShapeLocked event");
 
+        h.join().unwrap();
+    }
+
+    #[test]
+    fn lines_completed() {
+
+        let (txo, rxo) = channel();
+        let (txi, rxi) = channel();
+
+        let mut g = Game::new(txo);
+        let mut b = Board::new();
+        let config = vec![
+            vec![false, false, false, false, false, false, false,  false, false, false],
+            vec![false, false, false, false, false, false, false,  false, false, false],
+            vec![false, false, false, false, false, false, false,  false, false, false], 
+            vec![true,  false, true,   true,  true,  true,  true,   true,  true,  true],
+            vec![true,  false, true,   true,  true,  true,  true,   true,  true,  true],
+            vec![true,  false, true,   true,  true,  true,  true,   true,  true,  true],
+            vec![true,  false, true,   true,  true,  true,  true,   true,  true,  true],
+        ];
+        let mut log = Vec::new();
+
+        b.setup(config, Point::new(0,0), false);
+        g.shape_controller.set_shape(Shape::El);
+        g.shape_controller.set_orientation(Orientation::Down);
+        g.shape_controller.set_position(Point::new(0,5));
+        g.board = b;
+
+        let h = thread::spawn(move|| {
+            while g.state != GameState::Over {
+                let mut check_messages = true;
+                while check_messages {
+                    match rxi.try_recv() {
+                        Ok(r) => {
+                            match r {
+                                Input::StartGame => {
+                                    g.start();
+                                },
+                                _ => {
+                                    g.next(r);
+                                }
+                            }
+                        },
+                        Err(_) => {
+                            check_messages = false;
+                        }
+                    };
+                }
+            }
+            g.state
+        });
+
+        self_play(rxo, txi, true, &mut log);
+        
+        assert!(log.len() > 0, "expect the log to contain some output");
+        let mut got_it = false;
+        for o in log.iter() {
+            match o {
+                Output::LineCompleted(_n) => {got_it = true;},
+                _ => {}
+            }
+        }
+
+        assert!(got_it, "we shoulda got a line completed message!");
         h.join().unwrap();
     }
 }
