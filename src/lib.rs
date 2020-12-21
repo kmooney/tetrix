@@ -6,12 +6,19 @@ use board::Board;
 use shape_state::{ShapeState, Direction};
 use shape::{Shape, Point};
 
+use std::convert::TryInto;
+use std::convert::TryFrom;
+
 use std::sync::mpsc::{Sender, Receiver}; 
 
 use event::{Input, Output};
 const VERSION: f32 = 0.01;
 const WIDTH: usize  = 10;
 const HEIGHT: usize = 25;
+
+const MAX_GAMES: usize = 32;
+
+
 
 #[derive(Debug, PartialEq)]
 pub enum GameState {New, Playing, Over}
@@ -223,7 +230,20 @@ impl Game {
 use std::thread;
 use std::sync::mpsc::channel;
 
-pub fn game() -> (thread::JoinHandle<GameState>, Receiver<Output>, Sender<Input>) {
+
+pub struct GameHandle {
+    join_handle: thread::JoinHandle<GameState>,
+    output_receiver: Receiver<Output>,
+    input_sender: Sender<Input>
+}
+
+impl GameHandle {
+    pub fn tuple(&self) -> (&thread::JoinHandle<GameState>, &Receiver<Output>, &Sender<Input>) {
+        (&self.join_handle, &self.output_receiver, &self.input_sender)
+    }
+}
+
+pub fn game() -> GameHandle {
     let (txo, rxo) = channel();
     let (txi, rxi) = channel();
 
@@ -251,7 +271,18 @@ pub fn game() -> (thread::JoinHandle<GameState>, Receiver<Output>, Sender<Input>
         }
         g.state
     });
-    return (h, rxo, txi);
+    return GameHandle{join_handle: h, output_receiver: rxo, input_sender: txi};
+}
+
+pub struct API{
+
+}
+
+impl API {
+    pub fn new() -> API {
+    
+        return API{};
+    }
 }
 
 
@@ -263,6 +294,12 @@ mod tests {
     use std::time;
     use crate::shape::Orientation;
     use super::*;
+
+    #[test] 
+    fn api() {
+        let a = API::new();
+        assert_eq!(true, true, "ran");
+    }
 
     #[test]
     fn game() {
@@ -521,7 +558,8 @@ mod tests {
 
     #[test]
     fn play() {
-        let (h, _rx, txi) = crate::game();
+        let g = crate::game();
+        let (_h, _rx, txi) = g.tuple();
         txi.send(Input::StartGame).unwrap();
         let txclock = txi.clone();
         thread::spawn(move || {
@@ -529,13 +567,14 @@ mod tests {
                 thread::sleep(time::Duration::from_millis(1));
             }
         });
-        let v = h.join().unwrap();
+        let v = g.join_handle.join().unwrap();
         assert!(v == GameState::Over, "Game should be over but was {:?}", v);
     }
 
     #[test]
     fn read_events() {
-        let (h, rx, txi) = crate::game();
+        let g = crate::game();
+        let (_h, rx, txi) = g.tuple();
         txi.send(Input::StartGame).unwrap();
         match rx.recv() {
             Ok(evt) => {
@@ -559,11 +598,11 @@ mod tests {
             }
         }
 
-        let v = h.join().unwrap();
+        let v = g.join_handle.join().unwrap();
         assert!(v == GameState::Over, "Game should be over but was {:?}", v);
     }
 
-    fn self_play(rx: Receiver<Output>, tx: Sender<Input>, no_input: bool, log: &mut std::vec::Vec<Output>) {
+    fn self_play(rx: &Receiver<Output>, tx: &Sender<Input>, no_input: bool, log: &mut std::vec::Vec<Output>) {
         tx.send(Input::StartGame).unwrap();
         match rx.recv() {
             Ok(evt) => {
@@ -600,14 +639,14 @@ mod tests {
 
     #[test]
     fn write_events() {
-        let (h, rx, tx) = crate::game();
+        let g = crate::game();        
         let mut v = Vec::new();
 
-        self_play(rx,tx, false, &mut v);
+        self_play(&g.output_receiver,&g.input_sender, false, &mut v);
 
         assert!(v.len() > 0, "expect the log to contain some output events");
         
-        h.join().unwrap();
+        g.join_handle.join().unwrap();
     }
 
     #[test]
@@ -631,7 +670,8 @@ mod tests {
     #[test]
     fn holds() {
         println!("running hold test");
-        let (h, rx, tx) = crate::game();
+        let g = crate::game();
+        let (_h, rx, tx) = g.tuple();
         tx.send(Input::StartGame).unwrap();
         println!("setting up!");
         match rx.recv() {
@@ -674,12 +714,13 @@ mod tests {
             assert!(counter < 10, "we expected a response about holding the shape and did not get one :(");
         }
         
-        h.join().unwrap();
+        g.join_handle.join().unwrap();
     }
     #[test]
     fn restores() {
         println!("running hold test");
-        let (h, rx, tx) = crate::game();
+        let g = crate::game();
+        let (_h, rx, tx) = g.tuple();
         tx.send(Input::StartGame).unwrap();
         println!("setting up!");
         match rx.recv() {
@@ -745,12 +786,13 @@ mod tests {
         }
 
         assert!(got_next_event, "we never got a next event.  odd...");
-        h.join().unwrap();
+        g.join_handle.join().unwrap();
     }
 
     #[test]
     fn shape_lock() {
-        let (h, rx, tx) = crate::game();
+        let g = crate::game();
+        let (_h, rx, tx) = g.tuple();
         let mut v = Vec::new();
 
         self_play(rx, tx, false, &mut v);
@@ -767,7 +809,7 @@ mod tests {
 
         assert!(got_it, "we shoulda got a ShapeLocked event");
 
-        h.join().unwrap();
+        g.join_handle.join().unwrap();
     }
 
     #[test]
@@ -819,7 +861,7 @@ mod tests {
             g.state
         });
 
-        self_play(rxo, txi, true, &mut log);
+        self_play(&rxo, &txi, true, &mut log);
         
         assert!(log.len() > 0, "expect the log to contain some output");
         let mut got_it = false;
