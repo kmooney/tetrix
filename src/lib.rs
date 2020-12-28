@@ -5,9 +5,19 @@ mod event;
 use board::Board;
 use shape_state::{ShapeState, Direction};
 use shape::{Shape, Point};
+use std::collections::VecDeque;
 
-use std::convert::TryInto;
-use std::convert::TryFrom;
+use std::time;
+
+
+use std::cell::RefCell;
+use std::rc::Rc;
+use std::sync::{Arc, Mutex};
+use std::vec::Vec;
+use std::collections::HashMap;
+
+use uuid::Uuid;
+
 
 use std::sync::mpsc::{Sender, Receiver}; 
 
@@ -16,11 +26,7 @@ const VERSION: f32 = 0.01;
 const WIDTH: usize  = 10;
 const HEIGHT: usize = 25;
 
-const MAX_GAMES: usize = 32;
-
-
-
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum GameState {New, Playing, Over}
 
 pub struct Game {
@@ -233,13 +239,13 @@ use std::sync::mpsc::channel;
 
 pub struct GameHandle {
     join_handle: thread::JoinHandle<GameState>,
-    output_receiver: Receiver<Output>,
+    output_receiver: Arc<Mutex<Receiver<Output>>>,
     input_sender: Sender<Input>
 }
 
 impl GameHandle {
-    pub fn tuple(&self) -> (&thread::JoinHandle<GameState>, &Receiver<Output>, &Sender<Input>) {
-        (&self.join_handle, &self.output_receiver, &self.input_sender)
+    pub fn tuple(&self) -> (&thread::JoinHandle<GameState>, Arc<Mutex<Receiver<Output>>>, &Sender<Input>) {
+        (&self.join_handle, self.output_receiver.clone(), &self.input_sender)
     }
 }
 
@@ -271,17 +277,92 @@ pub fn game() -> GameHandle {
         }
         g.state
     });
-    return GameHandle{join_handle: h, output_receiver: rxo, input_sender: txi};
+    return GameHandle{join_handle: h, output_receiver: Arc::new(Mutex::new(rxo)), input_sender: txi};
 }
 
-pub struct API{
-
+pub struct GameWrapper {
+    h: GameHandle,
+    ob: Arc<Mutex<VecDeque<Output>>>
 }
 
-impl API {
-    pub fn new() -> API {
-    
-        return API{};
+impl GameWrapper {
+
+    pub fn new(h: GameHandle) -> GameWrapper {
+        // this vector probably needs to be Arc<Vec>
+        let ob = Arc::new(Mutex::new(VecDeque::new()));
+        // make a thread that's trying to fill the ob vec with 
+        // output from the game        
+        let q = ob.clone();
+        let rxo = h.output_receiver.clone();
+        thread::spawn(move || {
+            let mut done = false;
+            let rxo = rxo.lock().unwrap();
+            while !done {
+                match rxo.recv() {
+                    Ok(evt) => {
+                        let mut q = q.lock().unwrap(); 
+                        q.push_back(evt);
+                    },
+                    Err(_) => {done = true;}
+                }
+            }
+
+        });
+        let txclock = h.input_sender.clone();
+        thread::spawn(move || {
+            while !txclock.send(Input::TickGame).is_err() {
+                thread::sleep(time::Duration::from_millis(10));
+            }
+        });
+        return GameWrapper {h: h, ob: ob};
+    }
+
+    pub fn drain(&self) -> Vec<Output> {
+        let mut v = Vec::new();
+        {
+            let mut q = self.ob.lock().unwrap();
+            // a bit gross because we block the queue for the whole
+            // read. rwblock wouldn't be better since we modify the 
+            // the queue here. 
+            while !q.is_empty() {
+                v.push(q.pop_front().unwrap());
+            }
+        }
+        return v;   
+    }
+
+    pub fn send(&self, input: Input) {
+        self.h.input_sender.send(input).unwrap();
+    }
+}
+
+
+pub struct GameMaster{
+    pool: Rc<RefCell<HashMap<Uuid, Rc<GameWrapper>>>>
+}
+
+impl GameMaster {
+    pub fn new() -> GameMaster {
+        let v : HashMap<Uuid, Rc<GameWrapper>> = HashMap::new();
+        return GameMaster{pool: Rc::new(RefCell::new(v))};
+    }
+
+    pub fn count(&self) -> usize {
+        return self.pool.borrow().len();
+    }
+
+    pub fn new_game(&self) -> Uuid {
+        let uuid = Uuid::new_v4();
+        let mut mut_pool = self.pool.borrow_mut();
+        mut_pool.insert(uuid, Rc::new(GameWrapper::new(game())));
+        return uuid;
+    }
+
+    pub fn game(&self, u: Uuid) -> Option<Rc<GameWrapper>> {
+        if self.pool.borrow().contains_key(&u) {
+            return Some(self.pool.borrow().get(&u).unwrap().clone());
+        }
+        return None;
     }
 }
 
@@ -291,14 +372,37 @@ impl API {
 
 #[cfg(test)]
 mod tests {
-    use std::time;
     use crate::shape::Orientation;
     use super::*;
 
+    #[test]
+    fn gw() {
+        let gw = GameWrapper::new(crate::game());
+        assert_eq!(gw.drain().len(), 0, "zero messages before start");
+    }
+
+    #[test]
+    fn gw_buffer() {
+        let gw = GameWrapper::new(crate::game());
+        assert_eq!(gw.drain().len(), 0, "zero messages before start");
+        gw.send(Input::StartGame);
+        std::thread::sleep(time::Duration::from_millis(100));
+        assert!(gw.drain().len() > 0, "should have buffered some output by now");
+    }   
+
     #[test] 
-    fn api() {
-        let a = API::new();
-        assert_eq!(true, true, "ran");
+    fn gm() {
+        let gm = GameMaster::new();       
+        assert_eq!(gm.count(), 0, "ran");
+        
+    }
+
+    #[test]
+    fn gm_new_game() {
+        let gm = GameMaster::new();       
+        assert_eq!(gm.count(), 0, "ran");
+        gm.new_game();
+        assert_eq!(gm.count(), 1, "new game");
     }
 
     #[test]
@@ -576,7 +680,7 @@ mod tests {
         let g = crate::game();
         let (_h, rx, txi) = g.tuple();
         txi.send(Input::StartGame).unwrap();
-        match rx.recv() {
+        match rx.lock().unwrap().recv() {
             Ok(evt) => {
                 assert!(evt == Output::GameStarted, "First event should be game start.  Got {:?} instead", evt);
             },
@@ -591,7 +695,7 @@ mod tests {
             }
         });
 
-        while let Ok(rmsg) = rx.recv() {
+        while let Ok(rmsg) = rx.lock().unwrap().recv() {
             match rmsg {
                 Output::BoardUpdate(b) => {print!("{}", b.report())},
                 _ => {println!("got some other message!")}
@@ -642,7 +746,7 @@ mod tests {
         let g = crate::game();        
         let mut v = Vec::new();
 
-        self_play(&g.output_receiver,&g.input_sender, false, &mut v);
+        self_play(&g.output_receiver.lock().unwrap(), &g.input_sender, false, &mut v);
 
         assert!(v.len() > 0, "expect the log to contain some output events");
         
@@ -674,7 +778,7 @@ mod tests {
         let (_h, rx, tx) = g.tuple();
         tx.send(Input::StartGame).unwrap();
         println!("setting up!");
-        match rx.recv() {
+        match rx.lock().unwrap().recv() {
             Ok(_) => {
             },
             Err(_) => {
@@ -697,7 +801,7 @@ mod tests {
         let mut counter = 0;
         while !done {
             println!("receiving..");
-            match rx.recv() {
+            match rx.lock().unwrap().recv() {
                 Ok(response) => match response {
                     Output::HeldShape(shape) => {
                         println!("shape was {:?}", shape);
@@ -723,7 +827,7 @@ mod tests {
         let (_h, rx, tx) = g.tuple();
         tx.send(Input::StartGame).unwrap();
         println!("setting up!");
-        match rx.recv() {
+        match rx.lock().unwrap().recv() {
             Ok(_) => {
             },
             Err(_) => {
@@ -747,7 +851,7 @@ mod tests {
         let mut got_next_event = false;
         while !done {
             println!("receiving..");
-            match rx.recv() {
+            match rx.lock().unwrap().recv() {
                 Ok(response) => match response {
                     Output::HeldShape(shape) => {
                         println!("shape was {:?}", shape);
@@ -772,7 +876,7 @@ mod tests {
         txctrl.send(Input::RestoreHold).unwrap();
         done = false;
         while !done {
-            match rx.recv() {
+            match rx.lock().unwrap().recv() {
                 Ok(response) => match response {
                     Output::RestoredShape(shape) => {
                         println!("shape restored was {:?}", shape);
@@ -795,7 +899,7 @@ mod tests {
         let (_h, rx, tx) = g.tuple();
         let mut v = Vec::new();
 
-        self_play(rx, tx, false, &mut v);
+        self_play(&rx.lock().unwrap(), tx, false, &mut v);
 
         assert!(v.len() > 0, "expect the log to contain some output events");
 

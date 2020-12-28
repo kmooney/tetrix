@@ -17,6 +17,21 @@ More to do on tetrix server:
 [x] line completed event
 [x] score change event - include the new score.  should score be kept by client?
 
+Game wrapper would:
+[x] wait for 'start game' command
+[x] generate tick events
+[x] buffer output from gamethread
+[x] proxy client commands to game thread
+[x] wait for a poll to drain the output buffer ([ ] can the client sip? what about latency?)
+
+Game master manages wrapper pool.  Creates/disposes game threads.
+[x] create game threads
+[ ] dispose game threads - (idk automatic??)
+
+Client would:
+    - create connection to API
+    - present output (either in SDL or thru web-ish interface.  telnet, lol?)
+
 horizon:
 
 API + first clients
