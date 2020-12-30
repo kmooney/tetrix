@@ -21,6 +21,7 @@ pub enum Output {
 #[derive(Clone, PartialEq, Debug)]
 pub enum Input {
     StartGame,
+    EndGame,
     TickGame,
     Left,
     Right,

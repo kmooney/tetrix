@@ -28,20 +28,20 @@ impl Board {
 
     pub fn report(&self) -> String {
         let mut board_report = String::new();
-        board_report.push_str(&format!("[  ]----{:02}----\n", HEIGHT));
+        board_report.push_str(&format!("[  ]----{:02}----\r\n", HEIGHT));
         for y in (0..HEIGHT).rev() {
             let row = self.0[y];
             board_report.push_str(&format!("{:02} ", y));
             for cell in row.iter() {
                 board_report.push_str(match cell {
                     true => "x",
-                    false => "_",
+                    false => " ",
                 })
             }
-            board_report.push_str("\n");
+            board_report.push_str("\r\n");
         }
-        board_report.push_str("-------------\n");
-        board_report.push_str("  |0123456789\n");
+        board_report.push_str("-------------\r\n");
+        board_report.push_str("  |0123456789\r\n");
         board_report
     }
 

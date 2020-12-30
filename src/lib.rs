@@ -1,7 +1,7 @@
 mod shape;
 mod shape_state;
 mod board;
-mod event;
+pub mod event;
 use board::Board;
 use shape_state::{ShapeState, Direction};
 use shape::{Shape, Point};
@@ -12,7 +12,7 @@ use std::time;
 
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 use std::vec::Vec;
 use std::collections::HashMap;
 
@@ -200,6 +200,11 @@ impl Game {
         self.tx.send(Output::GameStarted).unwrap();
     }
 
+    pub fn quit(&mut self) {
+        self.state = GameState::Over;
+        self.tx.send(Output::GameOver).unwrap();
+    }
+
     pub fn clear_lines(&mut self) {
         let mut clear_count : u8 = 0;
         let mut y = 0;
@@ -240,12 +245,12 @@ use std::sync::mpsc::channel;
 pub struct GameHandle {
     join_handle: thread::JoinHandle<GameState>,
     output_receiver: Arc<Mutex<Receiver<Output>>>,
-    input_sender: Sender<Input>
+    input_sender: Arc<Mutex<Sender<Input>>>
 }
 
 impl GameHandle {
-    pub fn tuple(&self) -> (&thread::JoinHandle<GameState>, Arc<Mutex<Receiver<Output>>>, &Sender<Input>) {
-        (&self.join_handle, self.output_receiver.clone(), &self.input_sender)
+    pub fn tuple(&self) -> (&thread::JoinHandle<GameState>, Arc<Mutex<Receiver<Output>>>, Arc<Mutex<Sender<Input>>>) {
+        (&self.join_handle, self.output_receiver.clone(), self.input_sender.clone())
     }
 }
 
@@ -264,6 +269,9 @@ pub fn game() -> GameHandle {
                             Input::StartGame => {
                                 g.start();
                             },
+                            Input::EndGame => {
+                                g.quit();
+                            },
                             _ => {
                                 g.next(r);
                             }
@@ -277,7 +285,7 @@ pub fn game() -> GameHandle {
         }
         g.state
     });
-    return GameHandle{join_handle: h, output_receiver: Arc::new(Mutex::new(rxo)), input_sender: txi};
+    return GameHandle{join_handle: h, output_receiver: Arc::new(Mutex::new(rxo)), input_sender: Arc::new(Mutex::new(txi))};
 }
 
 pub struct GameWrapper {
@@ -288,10 +296,7 @@ pub struct GameWrapper {
 impl GameWrapper {
 
     pub fn new(h: GameHandle) -> GameWrapper {
-        // this vector probably needs to be Arc<Vec>
         let ob = Arc::new(Mutex::new(VecDeque::new()));
-        // make a thread that's trying to fill the ob vec with 
-        // output from the game        
         let q = ob.clone();
         let rxo = h.output_receiver.clone();
         thread::spawn(move || {
@@ -309,21 +314,23 @@ impl GameWrapper {
 
         });
         let txclock = h.input_sender.clone();
-        thread::spawn(move || {
-            while !txclock.send(Input::TickGame).is_err() {
-                thread::sleep(time::Duration::from_millis(10));
+        thread::spawn(move || {    
+            // i *think* this lock is released after we send and check error
+            // so it should be unlocked most of the time.        
+            while !txclock.lock().unwrap().send(Input::TickGame).is_err() {
+                thread::sleep(time::Duration::from_millis(1000));
             }
         });
         return GameWrapper {h: h, ob: ob};
     }
 
-    pub fn drain(&self) -> Vec<Output> {
+    pub fn drain(ob : Arc<Mutex<VecDeque<Output>>>) -> Vec<Output> {
         let mut v = Vec::new();
         {
-            let mut q = self.ob.lock().unwrap();
+            let mut q = ob.lock().unwrap();
             // a bit gross because we block the queue for the whole
             // read. rwblock wouldn't be better since we modify the 
-            // the queue here. 
+            // the queue right after we read.... 
             while !q.is_empty() {
                 v.push(q.pop_front().unwrap());
             }
@@ -331,36 +338,46 @@ impl GameWrapper {
         return v;   
     }
 
+    pub fn queue(&self) -> Arc<Mutex<VecDeque<Output>>> {
+        return self.ob.clone();
+    }
+
     pub fn send(&self, input: Input) {
-        self.h.input_sender.send(input).unwrap();
+        match self.h.input_sender.lock().unwrap().send(input) {
+            Err(e) => println!("ERROR {}", e),
+            _ => {}
+        }
     }
 }
 
 
 pub struct GameMaster{
-    pool: Rc<RefCell<HashMap<Uuid, Rc<GameWrapper>>>>
+    pool: Arc<RwLock<HashMap<Uuid, Arc<GameWrapper>>>>
 }
 
 impl GameMaster {
     pub fn new() -> GameMaster {
-        let v : HashMap<Uuid, Rc<GameWrapper>> = HashMap::new();
-        return GameMaster{pool: Rc::new(RefCell::new(v))};
+        let v : HashMap<Uuid, Arc<GameWrapper>> = HashMap::new();
+        return GameMaster{pool: Arc::new(RwLock::new(v))};
     }
 
     pub fn count(&self) -> usize {
-        return self.pool.borrow().len();
+        return self.pool.read().unwrap().len();
     }
 
     pub fn new_game(&self) -> Uuid {
+        // check for max games and don't allow us to make
+        // more than that many.
         let uuid = Uuid::new_v4();
-        let mut mut_pool = self.pool.borrow_mut();
-        mut_pool.insert(uuid, Rc::new(GameWrapper::new(game())));
+        let mut mut_pool = self.pool.write().unwrap();
+        mut_pool.insert(uuid, Arc::new(GameWrapper::new(game())));
         return uuid;
     }
 
-    pub fn game(&self, u: Uuid) -> Option<Rc<GameWrapper>> {
-        if self.pool.borrow().contains_key(&u) {
-            return Some(self.pool.borrow().get(&u).unwrap().clone());
+    pub fn game(&self, u: Uuid) -> Option<Arc<GameWrapper>> {
+        let mut pool = self.pool.read().unwrap();
+        if pool.contains_key(&u) {            
+            return Some(pool[&u].clone());
         }
         return None;
     }
@@ -664,10 +681,10 @@ mod tests {
     fn play() {
         let g = crate::game();
         let (_h, _rx, txi) = g.tuple();
-        txi.send(Input::StartGame).unwrap();
+        txi.lock().unwrap().send(Input::StartGame).unwrap();
         let txclock = txi.clone();
         thread::spawn(move || {
-            while !txclock.send(Input::TickGame).is_err() {
+            while !txclock.lock().unwrap().send(Input::TickGame).is_err() {
                 thread::sleep(time::Duration::from_millis(1));
             }
         });
@@ -679,7 +696,7 @@ mod tests {
     fn read_events() {
         let g = crate::game();
         let (_h, rx, txi) = g.tuple();
-        txi.send(Input::StartGame).unwrap();
+        txi.lock().unwrap().send(Input::StartGame).unwrap();
         match rx.lock().unwrap().recv() {
             Ok(evt) => {
                 assert!(evt == Output::GameStarted, "First event should be game start.  Got {:?} instead", evt);
@@ -690,7 +707,7 @@ mod tests {
         };
         let txclock = txi.clone();
         thread::spawn(move || {
-            while !txclock.send(Input::TickGame).is_err() {
+            while !txclock.lock().unwrap().send(Input::TickGame).is_err() {
                 thread::sleep(time::Duration::from_millis(1));
             }
         });
@@ -746,7 +763,7 @@ mod tests {
         let g = crate::game();        
         let mut v = Vec::new();
 
-        self_play(&g.output_receiver.lock().unwrap(), &g.input_sender, false, &mut v);
+        self_play(&g.output_receiver.lock().unwrap(), &g.input_sender.lock().unwrap(), false, &mut v);
 
         assert!(v.len() > 0, "expect the log to contain some output events");
         
@@ -776,7 +793,7 @@ mod tests {
         println!("running hold test");
         let g = crate::game();
         let (_h, rx, tx) = g.tuple();
-        tx.send(Input::StartGame).unwrap();
+        tx.lock().unwrap().send(Input::StartGame).unwrap();
         println!("setting up!");
         match rx.lock().unwrap().recv() {
             Ok(_) => {
@@ -790,13 +807,13 @@ mod tests {
         let txclock = tx.clone();
 
         thread::spawn(move || {
-            while !txclock.send(Input::TickGame).is_err() {
+            while !txclock.lock().unwrap().send(Input::TickGame).is_err() {
                 thread::sleep(time::Duration::from_millis(1));
             }
         });
 
 
-        txctrl.send(Input::Hold).unwrap();
+        txctrl.lock().unwrap().send(Input::Hold).unwrap();
         let mut done = false;
         let mut counter = 0;
         while !done {
@@ -825,7 +842,7 @@ mod tests {
         println!("running hold test");
         let g = crate::game();
         let (_h, rx, tx) = g.tuple();
-        tx.send(Input::StartGame).unwrap();
+        tx.lock().unwrap().send(Input::StartGame).unwrap();
         println!("setting up!");
         match rx.lock().unwrap().recv() {
             Ok(_) => {
@@ -839,12 +856,12 @@ mod tests {
         let txclock = tx.clone();
 
         thread::spawn(move || {
-            while !txclock.send(Input::TickGame).is_err() {
+            while !txclock.lock().unwrap().send(Input::TickGame).is_err() {
                 thread::sleep(time::Duration::from_millis(1));
             }
         });
 
-        txctrl.send(Input::Hold).unwrap();
+        txctrl.lock().unwrap().send(Input::Hold).unwrap();
         let mut done = false;
         let mut counter = 0;
         let mut held_shape = None;
@@ -873,7 +890,7 @@ mod tests {
             assert!(counter < 10, "we expected a response about holding the shape and did not get one :(");
         }
 
-        txctrl.send(Input::RestoreHold).unwrap();
+        txctrl.lock().unwrap().send(Input::RestoreHold).unwrap();
         done = false;
         while !done {
             match rx.lock().unwrap().recv() {
@@ -899,7 +916,7 @@ mod tests {
         let (_h, rx, tx) = g.tuple();
         let mut v = Vec::new();
 
-        self_play(&rx.lock().unwrap(), tx, false, &mut v);
+        self_play(&rx.lock().unwrap(), &tx.lock().unwrap(), false, &mut v);
 
         assert!(v.len() > 0, "expect the log to contain some output events");
 
