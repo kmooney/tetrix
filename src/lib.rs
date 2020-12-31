@@ -9,9 +9,6 @@ use std::collections::VecDeque;
 
 use std::time;
 
-
-use std::cell::RefCell;
-use std::rc::Rc;
 use std::sync::{Arc, Mutex, RwLock};
 use std::vec::Vec;
 use std::collections::HashMap;
@@ -57,7 +54,7 @@ impl Game {
     }
 
     pub fn shape_controller(&mut self) -> &mut ShapeState {
-        return &mut self.shape_controller;
+        return &mut self.shape_controller
     }
 
     pub fn get_shape_controller(&self) -> &ShapeState {
@@ -395,16 +392,17 @@ mod tests {
     #[test]
     fn gw() {
         let gw = GameWrapper::new(crate::game());
-        assert_eq!(gw.drain().len(), 0, "zero messages before start");
+
+        assert_eq!(GameWrapper::drain(gw.queue()).len(), 0, "zero messages before start");
     }
 
     #[test]
     fn gw_buffer() {
         let gw = GameWrapper::new(crate::game());
-        assert_eq!(gw.drain().len(), 0, "zero messages before start");
+        assert_eq!(GameWrapper::drain(gw.queue()).len(), 0, "zero messages before start");
         gw.send(Input::StartGame);
         std::thread::sleep(time::Duration::from_millis(100));
-        assert!(gw.drain().len() > 0, "should have buffered some output by now");
+        assert!(GameWrapper::drain(gw.queue()).len() > 0, "should have buffered some output by now");
     }   
 
     #[test] 
@@ -510,6 +508,104 @@ mod tests {
         assert!(b.0[4][8]);
         assert!(b.0[5][8]);
         assert!(b.0[3][9]);
+    }
+
+    #[test]
+    fn flush_wall_r2() {
+        let (tx, _rx) = channel();
+        let mut g = Game::new(tx);
+        g.shape_controller.set_shape(Shape::Eye);
+        g.shape_controller.set_position(Point::new(5, 3));
+        g.shape_controller.set_orientation(Orientation::Up);
+        g.start();
+        let mut b = g.board;
+        b.occupy(
+            &g.shape_controller.shape().to_mat(g.shape_controller.orientation()),
+            g.shape_controller.position()
+        );
+        println!("{}",b.report());
+        assert!(b.0[3][5]);
+        assert!(b.0[4][5]);
+        assert!(b.0[5][5]);
+        assert!(b.0[6][5]);
+
+        
+        b.vacate(
+            &g.shape_controller.shape().to_mat(g.shape_controller.orientation()),
+            g.shape_controller.position()
+        );
+        
+        g.shape_controller.right(&g.board);
+        
+        b.occupy(
+            &g.shape_controller.shape().to_mat(g.shape_controller.orientation()),
+            g.shape_controller.position()
+        );
+
+        println!("{}",b.report());
+        assert!(b.0[3][6], "not at y = 6");
+        assert!(b.0[4][6]);
+        assert!(b.0[5][6]);
+        assert!(b.0[6][6]);
+
+         
+        b.vacate(
+            &g.shape_controller.shape().to_mat(g.shape_controller.orientation()),
+            g.shape_controller.position()
+        );
+        
+        g.shape_controller.right(&g.board);
+        
+        b.occupy(
+            &g.shape_controller.shape().to_mat(g.shape_controller.orientation()),
+            g.shape_controller.position()
+        );
+
+        println!("{}",b.report());
+        assert!(b.0[3][7], "not at y = 7");
+        assert!(b.0[4][7]);
+        assert!(b.0[5][7]);
+        assert!(b.0[6][7]);
+
+
+        b.vacate(
+            &g.shape_controller.shape().to_mat(g.shape_controller.orientation()),
+            g.shape_controller.position()
+        );
+        
+        g.shape_controller.right(&g.board);
+        
+        b.occupy(
+            &g.shape_controller.shape().to_mat(g.shape_controller.orientation()),
+            g.shape_controller.position()
+        );
+
+        println!("{}",b.report());
+        assert!(b.0[3][8], "not at y = 8");
+        assert!(b.0[4][8]);
+        assert!(b.0[5][8]);
+        assert!(b.0[6][8]);
+
+        
+        b.vacate(
+            &g.shape_controller.shape().to_mat(g.shape_controller.orientation()),
+            g.shape_controller.position()
+        );
+        
+        g.shape_controller.right(&g.board);
+        
+        b.occupy(
+            &g.shape_controller.shape().to_mat(g.shape_controller.orientation()),
+            g.shape_controller.position()
+        );
+
+        println!("{}",b.report());
+        assert!(b.0[3][9], "not at y = 9");
+        assert!(b.0[4][9]);
+        assert!(b.0[5][9]);
+        assert!(b.0[6][9]);
+
+
     }
 
     #[test]

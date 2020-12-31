@@ -120,7 +120,7 @@ impl Shape {
                     [true, true, false, false],
                     [false, true, false, false],
                     [false, true, false, false],
-                    [false,  true,  false, false],
+                    [false,  false,  false, false],
                 ],
                 Orientation::Right => [
                     [false, false, false, false],
