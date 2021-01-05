@@ -1,6 +1,7 @@
 use crate::board::Board;
 use crate::shape::Shape;
 use crate::shape::Orientation;
+use crate::shape::Point;
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum Output {
@@ -13,6 +14,7 @@ pub enum Output {
     NextShape(Shape),
     RotatedShape(Orientation),
     MovedShape,
+    ShapePosition(Shape, Point, Point),
     ShapeLocked(Shape),
     LineCompleted(u8), // how many lines?
     ScoreUpdate(u32),

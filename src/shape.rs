@@ -2,7 +2,7 @@ use rand::Rng;
 use std::marker::Copy;
 
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct Point {
     pub x: usize, 
     pub y: usize,
@@ -12,8 +12,14 @@ impl Point {
     pub fn new(x: usize, y: usize) -> Point {
         Point {x: x, y: y}
     }
+
 }
 
+impl PartialEq for Point {
+    fn eq(&self, other: &Self) -> bool {
+        self.x == other.x && self.y == other.y
+    }
+}
 
 pub type ShapeMat = [[bool; 4]; 4];
 

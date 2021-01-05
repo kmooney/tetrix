@@ -149,6 +149,7 @@ impl Game {
             GameState::Playing => {},
             _ => return,
         }
+        let from_point = self.shape_controller.position().clone();
         self.board.vacate(
             &self.shape_controller.shape().to_mat(self.shape_controller.orientation()),
             self.shape_controller.position()
@@ -183,6 +184,8 @@ impl Game {
                     }
                     self.down_ready = false;
                 }
+                let to_point = self.shape_controller.position().clone();
+                self.tx.send(Output::ShapePosition(self.shape_controller.shape(), from_point, to_point)).unwrap();        
                 self.board.occupy(
                     &self.shape_controller.shape().to_mat(self.shape_controller.orientation()),
                     self.shape_controller.position()
