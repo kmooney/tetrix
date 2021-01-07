@@ -174,6 +174,8 @@ impl Game {
                 self.shape_controller = ShapeState::new_from_shape(self.next_shape);
                 self.next_shape = Shape::random();
                 self.tx.send(Output::ShapeLocked(self.shape_controller.shape())).unwrap();
+                let to_point = self.shape_controller.position().clone();
+                self.tx.send(Output::ShapePosition(self.shape_controller.shape(), self.shape_controller.orientation(), None, to_point)).unwrap();        
                 self.clear_lines();
                 self.tx.send(Output::NextShape(self.next_shape)).unwrap();
             } else {
@@ -185,7 +187,7 @@ impl Game {
                     self.down_ready = false;
                 }
                 let to_point = self.shape_controller.position().clone();
-                self.tx.send(Output::ShapePosition(self.shape_controller.shape(), from_point, to_point)).unwrap();        
+                self.tx.send(Output::ShapePosition(self.shape_controller.shape(), self.shape_controller.orientation(), Some(from_point), to_point)).unwrap();        
                 self.board.occupy(
                     &self.shape_controller.shape().to_mat(self.shape_controller.orientation()),
                     self.shape_controller.position()
