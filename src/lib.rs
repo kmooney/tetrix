@@ -1,4 +1,4 @@
-mod shape;
+pub mod shape;
 mod shape_state;
 mod board;
 pub mod event;
