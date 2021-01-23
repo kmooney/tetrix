@@ -169,7 +169,7 @@ impl Shape {
                     [true,  true,  false, false],
                 ]
             },
-            Shape::Zee => match o {
+            Shape::ZeeInv => match o {
                 Orientation::Up | Orientation::Down => [
                     [false, false, false, false],
                     [true,  false, false, false],
@@ -183,7 +183,7 @@ impl Shape {
                     [true,  true,  false, false],
                 ]
             }
-            Shape::ZeeInv => match o {
+            Shape::Zee => match o {
                 Orientation::Up | Orientation::Down => [
                     [false, false, false, false],
                     [false,  true, false, false],

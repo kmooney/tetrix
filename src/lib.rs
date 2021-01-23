@@ -320,7 +320,7 @@ impl GameWrapper {
             // i *think* this lock is released after we send and check error
             // so it should be unlocked most of the time.        
             while !txclock.lock().unwrap().send(Input::TickGame).is_err() {
-                thread::sleep(time::Duration::from_millis(1000));
+                thread::sleep(time::Duration::from_millis(100));
             }
         });
         return GameWrapper {h: h, ob: ob};
