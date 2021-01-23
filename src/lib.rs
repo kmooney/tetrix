@@ -164,6 +164,7 @@ impl Game {
 
         for _i in 0..count {
             if self.shape_collides() {
+                let to_point = self.shape_controller.position().clone();
                 if self.check_game_over() {
                     self.state = GameState::Over;
                     self.tx.send(Output::GameOver).unwrap();
@@ -172,10 +173,13 @@ impl Game {
                     &self.shape_controller.shape().to_mat(self.shape_controller.orientation()),
                     self.shape_controller.position()
                 );
+                // this would be the last gasp of the shape before it locks..
+                self.tx.send(Output::ShapePosition(self.shape_controller.shape(), Some(from_orientation), self.shape_controller.orientation(), Some(from_point), to_point)).unwrap();
                 self.shape_controller = ShapeState::new_from_shape(self.next_shape);
                 self.next_shape = Shape::random();
                 self.tx.send(Output::ShapeLocked(self.shape_controller.shape())).unwrap();
                 let to_point = self.shape_controller.position().clone();
+                // this is the new shape
                 self.tx.send(Output::ShapePosition(self.shape_controller.shape(), None, self.shape_controller.orientation(), None, to_point)).unwrap();        
                 self.clear_lines();
                 self.tx.send(Output::NextShape(self.next_shape)).unwrap();
