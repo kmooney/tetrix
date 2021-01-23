@@ -321,7 +321,7 @@ impl GameWrapper {
             // i *think* this lock is released after we send and check error
             // so it should be unlocked most of the time.        
             while !txclock.lock().unwrap().send(Input::TickGame).is_err() {
-                thread::sleep(time::Duration::from_millis(100));
+                thread::sleep(time::Duration::from_millis(1000));
             }
         });
         return GameWrapper {h: h, ob: ob};
@@ -776,7 +776,7 @@ mod tests {
         g.start();
         g.shape_controller().drop(&b);
         assert!(g.shape_controller().position().x == 0, "x should be 0");
-        assert!(g.shape_controller().position().y == 1, "y should be 1");
+        assert!(g.shape_controller().position().y == 0, "y should be 0");
     }
 
     #[test]

@@ -123,8 +123,7 @@ impl ShapeState {
         }
     }
 
-    pub fn any_collide(&self, b: &Board) -> bool {
-        if self.position.y == 0 {return true}
+    pub fn shape_collide(&self, b: &Board) -> bool {
         let width = self.shape.width(&self.orientation);
         let position = &self.position;
         if position.x + width > WIDTH { return true }
@@ -139,18 +138,24 @@ impl ShapeState {
                 }
             }
         }
+        return false;
+    }
 
-        return false
+    pub fn any_collide(&self, b: &Board) -> bool {
+        if self.position.y == 0 {return true}
+        return self.shape_collide(b);
     }
 
     pub fn drop(&mut self, b: &Board) {
         loop {
             if self.position.y != 0 {
                 self.position.y -= 1;
-            }
-
-            if self.any_collide(b) {
+            }            
+            if self.shape_collide(b) {
                 self.position.y += 1;
+                break;
+            }
+            if self.position.y == 0 {
                 break;
             }
         }
