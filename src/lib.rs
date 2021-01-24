@@ -15,7 +15,6 @@ use std::collections::HashMap;
 
 use uuid::Uuid;
 
-
 use std::sync::mpsc::{Sender, Receiver}; 
 
 use event::{Input, Output};
@@ -242,7 +241,7 @@ impl Game {
         // TODO: more complex score calculation
         self.score += clear_count as u32;
         self.tx.send(Output::ScoreUpdate(self.score)).unwrap();
-        self.tx.send(Output::LineCompleted(clear_count)).unwrap();
+        self.tx.send(Output::LineCompleted(clear_count, self.board)).unwrap();
     }
 
 }
@@ -1096,7 +1095,7 @@ mod tests {
         let mut got_it = false;
         for o in log.iter() {
             match o {
-                Output::LineCompleted(_n) => {got_it = true;},
+                Output::LineCompleted(_n, _b) => {got_it = true;},
                 _ => {}
             }
         }
