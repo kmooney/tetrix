@@ -74,10 +74,10 @@ impl Game {
         for y in 0..4 {
             for x in 0..4 {
                 let cell = m[3-y][x];
-                if cell && (x + p.x >= WIDTH) {
+                if cell != None && (x + p.x >= WIDTH) {
                     return true;
                 }
-                if cell && b.0[y + p.y - 1][x + p.x] {
+                if cell != None && b.0[y + p.y - 1][x + p.x] != None {
                     return true;
                 }
             }
@@ -220,7 +220,7 @@ impl Game {
         
         'outer: while y < HEIGHT {        
             for x in 0..WIDTH {
-                if !self.board.0[y][x] {
+                if self.board.0[y][x] == None{
                     y += 1;
                     continue 'outer;
                 }
@@ -228,7 +228,7 @@ impl Game {
             'fall: for z in y..HEIGHT - 1 {
                 let mut empty_line = true;
                 for x in 0..WIDTH {
-                    if self.board.0[z+1][x] {
+                    if self.board.0[z+1][x] != None {
                         empty_line = false;
                     }
                     self.board.0[z][x] = self.board.0[z+1][x];
@@ -445,13 +445,13 @@ mod tests {
             _ => assert!(false, "Hold shape should be unset at start")
         }
         let config = vec![
-            vec![false, true, false, true, false, false, true],
-            vec![false, true, false, true, false, false, true],
-            vec![false, true, false, true, false, false, true],
-            vec![false, true,  true, true, false, false, true],
-            vec![false, true, false, true, false, false, true],
-            vec![false, true, false, true, false, false, true],
-            vec![false, true, false, true, false, false, true],
+            vec![None, Some(Shape::random()), None, Some(Shape::random()), None, None, Some(Shape::random())],
+            vec![None, Some(Shape::random()), None, Some(Shape::random()), None, None, Some(Shape::random())],
+            vec![None, Some(Shape::random()), None, Some(Shape::random()), None, None, Some(Shape::random())],
+            vec![None, Some(Shape::random()),  Some(Shape::random()), Some(Shape::random()), None, None, Some(Shape::random())],
+            vec![None, Some(Shape::random()), None, Some(Shape::random()), None, None, Some(Shape::random())],
+            vec![None, Some(Shape::random()), None, Some(Shape::random()), None, None, Some(Shape::random())],
+            vec![None, Some(Shape::random()), None, Some(Shape::random()), None, None, Some(Shape::random())],
         ];
         let mut board = g.board;
         board.setup(config, Point{x: 1, y: 3}, true);
@@ -460,8 +460,8 @@ mod tests {
         for y in 0..HEIGHT {
             for x in 0..WIDTH {
                 match board.0[y][x] {
-                    true => trues += 1,
-                    false => {}
+                    Some(shape) => trues += 1,
+                    None => {}
                 }
             }
         }
@@ -484,10 +484,10 @@ mod tests {
             let pos = g.shape_controller.position();
             b.occupy(&mat, pos);
         }
-        assert!(b.0[3][3]);
-        assert!(b.0[3][4]);
-        assert!(b.0[3][5]);
-        assert!(b.0[4][5]);
+        assert!(b.0[3][3] != None);
+        assert!(b.0[3][4] != None);
+        assert!(b.0[3][5] != None);
+        assert!(b.0[4][5] != None);
     }
 
     #[test]
@@ -516,10 +516,10 @@ mod tests {
             &g.shape_controller.shape().to_mat(g.shape_controller.orientation()),
             g.shape_controller.position()
         );
-        assert!(b.0[3][8], "box 1 in the wrong spot!");
-        assert!(b.0[4][8]);
-        assert!(b.0[5][8]);
-        assert!(b.0[3][9]);
+        assert!(b.0[3][8] != None, "box 1 in the wrong spot!");
+        assert!(b.0[4][8] != None);
+        assert!(b.0[5][8] != None);
+        assert!(b.0[3][9] != None);
     }
 
     #[test]
@@ -536,10 +536,10 @@ mod tests {
             g.shape_controller.position()
         );
         println!("{}",b.report());
-        assert!(b.0[3][5]);
-        assert!(b.0[4][5]);
-        assert!(b.0[5][5]);
-        assert!(b.0[6][5]);
+        assert!(b.0[3][5] != None);
+        assert!(b.0[4][5] != None);
+        assert!(b.0[5][5] != None);
+        assert!(b.0[6][5] != None);
 
         
         b.vacate(
@@ -555,10 +555,10 @@ mod tests {
         );
 
         println!("{}",b.report());
-        assert!(b.0[3][6], "not at y = 6");
-        assert!(b.0[4][6]);
-        assert!(b.0[5][6]);
-        assert!(b.0[6][6]);
+        assert!(b.0[3][6] != None, "not at y = 6");
+        assert!(b.0[4][6] != None);
+        assert!(b.0[5][6] != None);
+        assert!(b.0[6][6] != None);
 
          
         b.vacate(
@@ -574,10 +574,10 @@ mod tests {
         );
 
         println!("{}",b.report());
-        assert!(b.0[3][7], "not at y = 7");
-        assert!(b.0[4][7]);
-        assert!(b.0[5][7]);
-        assert!(b.0[6][7]);
+        assert!(b.0[3][7] != None, "not at y = 7");
+        assert!(b.0[4][7] != None);
+        assert!(b.0[5][7] != None);
+        assert!(b.0[6][7] != None);
 
 
         b.vacate(
@@ -593,10 +593,10 @@ mod tests {
         );
 
         println!("{}",b.report());
-        assert!(b.0[3][8], "not at y = 8");
-        assert!(b.0[4][8]);
-        assert!(b.0[5][8]);
-        assert!(b.0[6][8]);
+        assert!(b.0[3][8] != None, "not at y = 8");
+        assert!(b.0[4][8] != None);
+        assert!(b.0[5][8] != None);
+        assert!(b.0[6][8] != None);
 
         
         b.vacate(
@@ -612,10 +612,10 @@ mod tests {
         );
 
         println!("{}",b.report());
-        assert!(b.0[3][9], "not at y = 9");
-        assert!(b.0[4][9]);
-        assert!(b.0[5][9]);
-        assert!(b.0[6][9]);
+        assert!(b.0[3][9] != None, "not at y = 9");
+        assert!(b.0[4][9] != None);
+        assert!(b.0[5][9] != None);
+        assert!(b.0[6][9] != None);
 
 
     }
@@ -634,10 +634,10 @@ mod tests {
             &g.shape_controller.shape().to_mat(g.shape_controller.orientation()),
             g.shape_controller.position()
         );      
-        assert!(b.0[3][8]);
-        assert!(b.0[4][8]);
-        assert!(b.0[5][8]);
-        assert!(b.0[3][9]);        
+        assert!(b.0[3][8] != None);
+        assert!(b.0[4][8] != None);
+        assert!(b.0[5][8] != None);
+        assert!(b.0[3][9] != None);        
 
         g.rotate(Direction::Ccw);
         
@@ -653,14 +653,14 @@ mod tests {
 
         let mut g = Game::new(tx);
         let config = vec![
-            vec![false, false, false, false, true],
-            vec![false, false, false, false, true],
-            vec![false, false, false, false, true],
-            vec![false, false, false, false, true],
-            vec![false, false, false, false, true],
-            vec![false, false, false, false, true],
-            vec![false, false, false, false, true],
-            vec![false, false, false, false, true],
+            vec![None, None, None, None, Some(Shape::random())],
+            vec![None, None, None, None, Some(Shape::random())],
+            vec![None, None, None, None, Some(Shape::random())],
+            vec![None, None, None, None, Some(Shape::random())],
+            vec![None, None, None, None, Some(Shape::random())],
+            vec![None, None, None, None, Some(Shape::random())],
+            vec![None, None, None, None, Some(Shape::random())],
+            vec![None, None, None, None, Some(Shape::random())],
         ];
         g.board.setup(config, Point::new(0,0), false);
         g.shape_controller.set_shape(Shape::El);
@@ -679,14 +679,14 @@ mod tests {
 
         let mut g = Game::new(tx);
         let config = vec![
-            vec![false, false, false, false, false, false, false, false, false, false],
-            vec![false, false, false, false, false, false, false, false, false, false],
-            vec![false, false, false, false, false, false, false, false, false, false],
-            vec![false, false, false, false, false, false, false, false, false, false],
-            vec![false, false, false, false, true, true,  false,  false, false, false],
-            vec![false, false, false, false, true, true,  false,  false, false, true],
-            vec![true,  true,  true,  false, true, true,  false, false, false, true],
-            vec![true,  true,  true,  true,  true, true,  true,  false, true,  true],
+            vec![None, None, None, None, None, None, None, None, None, None],
+            vec![None, None, None, None, None, None, None, None, None, None],
+            vec![None, None, None, None, None, None, None, None, None, None],
+            vec![None, None, None, None, None, None, None, None, None, None],
+            vec![None, None, None, None, Some(Shape::random()), Some(Shape::random()),  None,  None, None, None],
+            vec![None, None, None, None, Some(Shape::random()), Some(Shape::random()),  None,  None, None, Some(Shape::random())],
+            vec![Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random()),  None, Some(Shape::random()), Some(Shape::random()),  None, None, None, Some(Shape::random())],
+            vec![Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random()), Some(Shape::random()),  Some(Shape::random()),  None, Some(Shape::random()),  Some(Shape::random())],
         ];
         g.board.setup(config, Point::new(0,0), false);
         g.shape_controller.set_shape(Shape::Tee);
@@ -703,14 +703,14 @@ mod tests {
 
         let mut g = Game::new(tx);
         let config = vec![
-            vec![false, false, false, false, false, false, false,  false, false, false],
-            vec![false, false, false, false, false, false, false,  false, false, false],
-            vec![false, false, false, false, false, false, false,  false, false, false],
-            vec![true,  false, true,  false, false,  true,  true,   true,  true,  true],
-            vec![true,  false, true,  false,  true,  true,  true,   true,  true,  true],
-            vec![true,  false, true,  false,  true,  true,  true,   true,  true,  true],
-            vec![true,  false, true,  false,  true,  true,  true,   true,  true,  true],
-            vec![true,  false, true,  false,  true,  true,  true,   true,  true,  true],
+            vec![None, None, None, None, None, None, None,  None, None, None],
+            vec![None, None, None, None, None, None, None,  None, None, None],
+            vec![None, None, None, None, None, None, None,  None, None, None],
+            vec![Some(Shape::random()),  None, Some(Shape::random()),  None, None,  Some(Shape::random()),  Some(Shape::random()),   Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random())],
+            vec![Some(Shape::random()),  None, Some(Shape::random()),  None,  Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random()),   Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random())],
+            vec![Some(Shape::random()),  None, Some(Shape::random()),  None,  Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random()),   Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random())],
+            vec![Some(Shape::random()),  None, Some(Shape::random()),  None,  Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random()),   Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random())],
+            vec![Some(Shape::random()),  None, Some(Shape::random()),  None,  Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random()),   Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random())],
         ];
         g.board.setup(config, Point::new(0,0), false);
         g.shape_controller.set_shape(Shape::Eye);
@@ -731,13 +731,13 @@ mod tests {
 
         let mut g = Game::new(tx);
         let config = vec![
-            vec![false, false, false, false, false, false, false,  false, false, false],
-            vec![false, false, false, false, false, false, false,  false, false, false],
-            vec![false, false, false, false, false, false, false,  false, false, false], 
-            vec![true,  false, true,   true,  true,  true,  true,   true,  true,  true],
-            vec![true,  false, true,   true,  true,  true,  true,   true,  true,  true],
-            vec![true,  false, true,   true,  true,  true,  true,   true,  true,  true],
-            vec![true,  false, true,   true,  true,  true,  true,   true,  true,  true],
+            vec![None, None, None, None, None, None, None,  None, None, None],
+            vec![None, None, None, None, None, None, None,  None, None, None],
+            vec![None, None, None, None, None, None, None,  None, None, None], 
+            vec![Some(Shape::random()),  None, Some(Shape::random()),   Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random()),   Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random())],
+            vec![Some(Shape::random()),  None, Some(Shape::random()),   Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random()),   Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random())],
+            vec![Some(Shape::random()),  None, Some(Shape::random()),   Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random()),   Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random())],
+            vec![Some(Shape::random()),  None, Some(Shape::random()),   Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random()),   Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random())],
         ];
         g.board.setup(config, Point::new(0,0), false);
         g.shape_controller.set_shape(Shape::Eye);
@@ -755,7 +755,7 @@ mod tests {
         assert!(g.score == 4, "line count should be four");
         for y in 0..HEIGHT { 
             for x in 0..WIDTH { 
-                assert!(!g.board.0[y][x], "board should be clear");
+                assert!(g.board.0[y][x] == None, "board should be clear");
             }
         }
     }
@@ -767,13 +767,13 @@ mod tests {
         let mut g = Game::new(tx);
         let mut b = Board::new();
         let config = vec![
-            vec![false, false, false, false, false, false, false,  false, false, false],
-            vec![false, false, false, false, false, false, false,  false, false, false],
-            vec![false, false, false, false, false, false, false,  false, false, false], 
-            vec![true,  false, true,   true,  true,  true,  true,   true,  true,  true],
-            vec![true,  false, true,   true,  true,  true,  true,   true,  true,  true],
-            vec![true,  false, true,   true,  true,  true,  true,   true,  true,  true],
-            vec![true,  false, true,   true,  true,  true,  true,   true,  true,  true],
+            vec![None, None, None, None, None, None, None,  None, None, None],
+            vec![None, None, None, None, None, None, None,  None, None, None],
+            vec![None, None, None, None, None, None, None,  None, None, None], 
+            vec![Some(Shape::random()),  None, Some(Shape::random()),   Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random()),   Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random())],
+            vec![Some(Shape::random()),  None, Some(Shape::random()),   Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random()),   Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random())],
+            vec![Some(Shape::random()),  None, Some(Shape::random()),   Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random()),   Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random())],
+            vec![Some(Shape::random()),  None, Some(Shape::random()),   Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random()),   Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random())],
         ];
         b.setup(config, Point::new(0,0), false);
         g.shape_controller.set_shape(Shape::El);
@@ -887,7 +887,7 @@ mod tests {
         b.trash(10);
         for x in b.0.iter() {
             for y in x.iter() {
-                if *y {
+                if *y != None {
                     trash_count += 1;
                 }
             }
@@ -1050,13 +1050,13 @@ mod tests {
         let mut g = Game::new(txo);
         let mut b = Board::new();
         let config = vec![
-            vec![false, false, false, false, false, false, false,  false, false, false],
-            vec![false, false, false, false, false, false, false,  false, false, false],
-            vec![false, false, false, false, false, false, false,  false, false, false], 
-            vec![true,  false, true,   true,  true,  true,  true,   true,  true,  true],
-            vec![true,  false, true,   true,  true,  true,  true,   true,  true,  true],
-            vec![true,  false, true,   true,  true,  true,  true,   true,  true,  true],
-            vec![true,  false, true,   true,  true,  true,  true,   true,  true,  true],
+            vec![None, None, None, None, None, None, None,  None, None, None],
+            vec![None, None, None, None, None, None, None,  None, None, None],
+            vec![None, None, None, None, None, None, None,  None, None, None], 
+            vec![Some(Shape::random()),  None, Some(Shape::random()),   Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random()),   Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random())],
+            vec![Some(Shape::random()),  None, Some(Shape::random()),   Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random()),   Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random())],
+            vec![Some(Shape::random()),  None, Some(Shape::random()),   Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random()),   Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random())],
+            vec![Some(Shape::random()),  None, Some(Shape::random()),   Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random()),   Some(Shape::random()),  Some(Shape::random()),  Some(Shape::random())],
         ];
         let mut log = Vec::new();
 

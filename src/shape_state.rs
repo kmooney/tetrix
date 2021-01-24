@@ -130,10 +130,10 @@ impl ShapeState {
         let mat = &self.shape.to_mat(self.orientation);
         for my in 0..3 {
             for mx in 0..3 {
-                if position.x + mx >= WIDTH && mat[3 - my][mx] {
+                if position.x + mx >= WIDTH && mat[3 - my][mx] != None {
                     return true
                 }
-                if mat[3 - my][mx] && b.0[position.y + my][position.x + mx] {                    
+                if mat[3 - my][mx] != None && b.0[position.y + my][position.x + mx] != None {
                     return true
                 }
             }

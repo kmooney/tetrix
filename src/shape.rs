@@ -21,7 +21,7 @@ impl PartialEq for Point {
     }
 }
 
-pub type ShapeMat = [[bool; 4]; 4];
+pub type ShapeMat = [[Option<Shape>; 4]; 4];
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Orientation {
@@ -71,130 +71,130 @@ impl Shape {
         match self {
             Shape::Tee => match o {
                 Orientation::Up => [
-                    [false, false, false, false],
-                    [false, false, false, false],
-                    [false, true, false, false],
-                    [true, true, true, false],
+                    [None, None, None, None],
+                    [None, None, None, None],
+                    [None, Some(Shape::Tee), None, None],
+                    [Some(Shape::Tee), Some(Shape::Tee), Some(Shape::Tee), None],
                 ],
                 Orientation::Down => [
-                    [false, false, false, false],
-                    [false, false, false, false],
-                    [true, true, true, false],
-                    [false, true, false, false],
+                    [None, None, None, None],
+                    [None, None, None, None],
+                    [Some(Shape::Tee), Some(Shape::Tee), Some(Shape::Tee), None],
+                    [None, Some(Shape::Tee), None, None],
                 ],
                 Orientation::Left => [
-                    [false, false, false, false],
-                    [false, true, false, false],
-                    [true, true, false, false],
-                    [false, true, false, false],
+                    [None, None, None, None],
+                    [None, Some(Shape::Tee), None, None],
+                    [Some(Shape::Tee), Some(Shape::Tee), None, None],
+                    [None, Some(Shape::Tee), None, None],
                 ],
                 Orientation::Right => [
-                    [false, false, false, false],
-                    [true, false, false, false],
-                    [true, true, false, false],
-                    [true, false, false, false],
+                    [None, None, None, None],
+                    [Some(Shape::Tee), None, None, None],
+                    [Some(Shape::Tee), Some(Shape::Tee), None, None],
+                    [Some(Shape::Tee), None, None, None],
                 ],
             },
             Shape::Eye => match o {
                 Orientation::Left | Orientation::Right => [
-                    [false, false, false, false],
-                    [false, false, false, false],
-                    [false, false, false, false],
-                    [true,  true,  true,  true],
+                    [None, None, None, None],
+                    [None, None, None, None],
+                    [None, None, None, None],
+                    [Some(Shape::Eye),  Some(Shape::Eye),  Some(Shape::Eye),  Some(Shape::Eye)],
                 ],
                 Orientation::Up | Orientation::Down => [
-                    [true, false, false, false],
-                    [true, false, false, false],
-                    [true, false, false, false],
-                    [true, false, false, false],
+                    [Some(Shape::Eye), None, None, None],
+                    [Some(Shape::Eye), None, None, None],
+                    [Some(Shape::Eye), None, None, None],
+                    [Some(Shape::Eye), None, None, None],
                 ]
             },
             Shape::El => match o {
                 Orientation::Up => [
-                    [false, false, false, false],
-                    [true,  false, false, false],
-                    [true,  false, false, false],
-                    [true,  true,  false, false],
+                    [None, None, None, None],
+                    [Some(Shape::El),  None, None, None],
+                    [Some(Shape::El),  None, None, None],
+                    [Some(Shape::El),  Some(Shape::El),  None, None],
                 ],
                 Orientation::Left => [
-                    [false, false, false, false],
-                    [false, false, false, false],
-                    [false, false, true, false],
-                    [true,  true,  true, false],
+                    [None, None, None, None],
+                    [None, None, None, None],
+                    [None, None, Some(Shape::El), None],
+                    [Some(Shape::El),  Some(Shape::El),  Some(Shape::El), None],
                 ],
                 Orientation::Down => [
-                    [true, true, false, false],
-                    [false, true, false, false],
-                    [false, true, false, false],
-                    [false,  false,  false, false],
+                    [Some(Shape::El), Some(Shape::El), None, None],
+                    [None, Some(Shape::El), None, None],
+                    [None, Some(Shape::El), None, None],
+                    [None,  None,  None, None],
                 ],
                 Orientation::Right => [
-                    [false, false, false, false],
-                    [false, false, false, false],
-                    [true, true, true, false],
-                    [true,  false,  false, false],
+                    [None, None, None, None],
+                    [None, None, None, None],
+                    [Some(Shape::El), Some(Shape::El), Some(Shape::El), None],
+                    [Some(Shape::El),  None,  None, None],
                 ],
             },
             Shape::ElInv => match o {
                 Orientation::Up => [
-                    [false, false, false, false],
-                    [false,  true, false, false],
-                    [false,  true, false, false],
-                    [true,  true,  false, false],
+                    [None, None, None, None],
+                    [None,  Some(Shape::ElInv), None, None],
+                    [None,  Some(Shape::ElInv), None, None],
+                    [Some(Shape::ElInv),  Some(Shape::ElInv),  None, None],
                 ],
                 Orientation::Left => [
-                    [false, false, false, false],
-                    [false, false, false, false],
-                    [true, true, true, false],
-                    [false,  false,  true, false],
+                    [None, None, None, None],
+                    [None, None, None, None],
+                    [Some(Shape::ElInv), Some(Shape::ElInv), Some(Shape::ElInv), None],
+                    [None,  None,  Some(Shape::ElInv), None],
                 ],
                 Orientation::Down => [
-                    [false, false, false, false],
-                    [true, true, false, false],
-                    [true, false, false, false],
-                    [true,  false,  false, false],
+                    [None, None, None, None],
+                    [Some(Shape::ElInv), Some(Shape::ElInv), None, None],
+                    [Some(Shape::ElInv), None, None, None],
+                    [Some(Shape::ElInv),  None,  None, None],
                 ],
                 Orientation::Right => [
-                    [false, false, false, false],
-                    [false, false, false, false],
-                    [true, false, false, false],
-                    [true,  true,  true, false],
+                    [None, None, None, None],
+                    [None, None, None, None],
+                    [Some(Shape::ElInv), None, None, None],
+                    [Some(Shape::ElInv),  Some(Shape::ElInv),  Some(Shape::ElInv), None],
                 ],
             },
             Shape::Square => match o {
                 Orientation::Up | Orientation::Down | Orientation::Left | Orientation::Right => [
-                    [false, false, false, false],
-                    [false,  false, false, false],
-                    [true,  true, false, false],
-                    [true,  true,  false, false],
+                    [None, None, None, None],
+                    [None,  None, None, None],
+                    [Some(Shape::Square),  Some(Shape::Square), None, None],
+                    [Some(Shape::Square),  Some(Shape::Square),  None, None],
                 ]
             },
             Shape::ZeeInv => match o {
                 Orientation::Up | Orientation::Down => [
-                    [false, false, false, false],
-                    [true,  false, false, false],
-                    [true,  true, false, false],
-                    [false,  true,  false, false],
+                    [None, None, None, None],
+                    [Some(Shape::ZeeInv),  None, None, None],
+                    [Some(Shape::ZeeInv),  Some(Shape::ZeeInv), None, None],
+                    [None,  Some(Shape::ZeeInv),  None, None],
                 ],
                 Orientation::Left | Orientation::Right => [
-                    [false, false, false, false],
-                    [false, false, false, false],
-                    [false, true, true, false],
-                    [true,  true,  false, false],
+                    [None, None, None, None],
+                    [None, None, None, None],
+                    [None, Some(Shape::ZeeInv), Some(Shape::ZeeInv), None],
+                    [Some(Shape::ZeeInv),  Some(Shape::ZeeInv),  None, None],
                 ]
             }
             Shape::Zee => match o {
                 Orientation::Up | Orientation::Down => [
-                    [false, false, false, false],
-                    [false,  true, false, false],
-                    [true,  true, false, false],
-                    [true,  false,  false, false],
+                    [None, None, None, None],
+                    [None,  Some(Shape::Zee), None, None],
+                    [Some(Shape::Zee),  Some(Shape::Zee), None, None],
+                    [Some(Shape::Zee),  None,  None, None],
                 ],
                 Orientation::Left | Orientation::Right => [
-                    [false, false, false, false],
-                    [false, false, false, false],
-                    [true, true, false, false],
-                    [false,  true,  true, false],
+                    [None, None, None, None],
+                    [None, None, None, None],
+                    [Some(Shape::Zee), Some(Shape::Zee), None, None],
+                    [None,  Some(Shape::Zee),  Some(Shape::Zee), None],
                 ]
             }
         }

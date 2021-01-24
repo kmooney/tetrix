@@ -1,15 +1,16 @@
 use crate::{WIDTH, HEIGHT};
-use crate::shape::{Point, ShapeMat};
+use crate::shape::{Point, ShapeMat, Shape};
 use std::marker::Copy;
 use rand::Rng;
 
+
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub struct Board(pub [[bool; WIDTH]; HEIGHT]);
+pub struct Board(pub [[Option<Shape>; WIDTH]; HEIGHT]);
 
 impl Board {
 
     pub fn new() -> Board {
-        return Board([[false; WIDTH]; HEIGHT]);
+        return Board([[None; WIDTH]; HEIGHT]);
     }
 
     pub fn trash(&mut self, amt: u8) {
@@ -18,9 +19,9 @@ impl Board {
             while !done {
                 let x = rand::thread_rng().gen_range(0, WIDTH);
                 let y = rand::thread_rng().gen_range(0, HEIGHT);
-                if self.0[y][x] == false {
+                if self.0[y][x] == None {
                     done = true;
-                    self.0[y][x] = true;
+                    self.0[y][x] = Some(Shape::random());
                 }
             }
         }
@@ -34,8 +35,8 @@ impl Board {
             board_report.push_str(&format!("{:02} ", y));
             for cell in row.iter() {
                 board_report.push_str(match cell {
-                    true => "x",
-                    false => " ",
+                    Some(s) => "x",
+                    None => " ",
                 })
             }
             board_report.push_str("\r\n");
@@ -51,7 +52,7 @@ impl Board {
                 // 0 is the bottom of the board
                 // so invert the y coordinate for this
                 // shape
-                if m[3-y][x] {
+                if m[3-y][x] != None {
                     self.0[y+p.y][x+p.x] = m[3-y][x];
                 }
             }
@@ -61,8 +62,8 @@ impl Board {
     pub fn vacate(&mut self, m: &ShapeMat, p: &Point) {
         for y in 0..4 {
             for x in 0..4 {
-                if m[3-y][x] && self.0[y+p.y][x+p.x]  {
-                    self.0[y+p.y][x+p.x] = false;
+                if m[3-y][x] != None && self.0[y+p.y][x+p.x] != None  {
+                    self.0[y+p.y][x+p.x] = None;
                 }
             }
         }
@@ -71,12 +72,12 @@ impl Board {
     pub fn reset(&mut self) {
         for y in 0..HEIGHT {
             for x in 0..WIDTH {
-                self.0[y][x] = false;
+                self.0[y][x] = None;
             }
         }
     }
 
-    pub fn setup(&mut self, config: Vec<Vec<bool>>, position: Point, overwrite: bool) {
+    pub fn setup(&mut self, config: Vec<Vec<Option<Shape>>>, position: Point, overwrite: bool) {
         let mut x;
         let mut y = 0;
         let config_height = config.len();
@@ -86,7 +87,9 @@ impl Board {
                 if overwrite {
                     self.0[config_height - y + position.y - 1][x + position.x] = *cell;
                 } else {
-                    self.0[config_height - y + position.y - 1][x + position.x] |= *cell;
+                    if None == self.0[config_height - y + position.y - 1][x + position.x] {
+                        self.0[config_height - y + position.y - 1][x + position.x] = *cell;
+                    }                    
                 }
                 x += 1;
             }
