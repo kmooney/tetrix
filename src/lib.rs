@@ -1,7 +1,7 @@
 pub mod shape;
 mod shape_state;
-mod board;
 pub mod event;
+pub mod board;
 use board::Board;
 use shape_state::{ShapeState, Direction};
 use shape::{Shape, Point};
@@ -19,8 +19,8 @@ use std::sync::mpsc::{Sender, Receiver};
 
 use event::{Input, Output};
 const VERSION: f32 = 0.01;
-const WIDTH: usize  = 10;
-const HEIGHT: usize = 25;
+pub const WIDTH: usize  = 10;
+pub const HEIGHT: usize = 25;
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum GameState {New, Playing, Over}
@@ -174,7 +174,7 @@ impl Game {
                 );
                 // this would be the last gasp of the shape before it locks..
                 self.tx.send(Output::ShapePosition(self.shape_controller.shape(), Some(from_orientation), self.shape_controller.orientation(), Some(from_point), to_point)).unwrap();
-                self.tx.send(Output::ShapeLocked(self.shape_controller.shape())).unwrap();
+                self.tx.send(Output::ShapeLocked(self.shape_controller.shape(), self.board)).unwrap();
                 
                 self.shape_controller = ShapeState::new_from_shape(self.next_shape);                
                 self.next_shape = Shape::random();                                
@@ -240,8 +240,10 @@ impl Game {
         }
         // TODO: more complex score calculation
         self.score += clear_count as u32;
-        self.tx.send(Output::ScoreUpdate(self.score)).unwrap();
-        self.tx.send(Output::LineCompleted(clear_count, self.board)).unwrap();
+        if clear_count != 0 {
+            self.tx.send(Output::ScoreUpdate(self.score)).unwrap();
+            self.tx.send(Output::LineCompleted(clear_count, self.board)).unwrap();
+        }
     }
 
 }

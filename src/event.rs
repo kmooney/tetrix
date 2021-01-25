@@ -15,7 +15,7 @@ pub enum Output {
     RotatedShape(Orientation),
     MovedShape,
     ShapePosition(Shape, Option<Orientation>, Orientation, Option<Point>, Point),
-    ShapeLocked(Shape),
+    ShapeLocked(Shape, Board),
     LineCompleted(u8, Board), // how many lines?
     ScoreUpdate(u32),
 }
