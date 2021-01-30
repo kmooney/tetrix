@@ -26,7 +26,7 @@ Game wrapper would:
 
 Game master manages wrapper pool.  Creates/disposes game threads.
 [x] create game threads
-[ ] dispose game threads - (idk automatic??)
+[x] dispose game threads - (idk automatic??)
 
 Client would:
     - create connection to API

@@ -92,14 +92,29 @@ impl ShapeState {
             Direction::Cw => self.rotate_cw()
         }
 
-
+        
         loop {
+            let mut xdelta = 0;          
             if !self.any_collide(b) { return }
             if self.position.x != 0 {
                 self.position.x -= 1;
+                xdelta += 1;
             }
+
             if !self.any_collide(b) { return }
-            self.position.x += 1;
+            if self.shape == Shape::Eye && self.position.x != 0 {                
+                self.position.x -= 1;
+                xdelta += 1;
+            }
+
+            if !self.any_collide(b) { return }
+            if self.shape == Shape::Eye && self.position.x != 0 {                
+                self.position.x -= 1;
+                xdelta += 1;
+            }
+            
+            if !self.any_collide(b) { return }
+            self.position.x += xdelta;
             self.position.y += 1;        
         }
 

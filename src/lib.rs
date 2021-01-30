@@ -206,6 +206,7 @@ impl Game {
     pub fn start(&mut self) {
         self.state = GameState::Playing;
         self.tx.send(Output::GameStarted).unwrap();
+        self.tx.send(Output::NextShape(self.next_shape)).unwrap();
     }
 
     pub fn quit(&mut self) {
@@ -645,7 +646,31 @@ mod tests {
         assert!(g.shape_controller().position().x == 7, "expected kick on shape");
     }
 
-  
+    #[test]
+    fn wall_kick_eye_r() {
+        let (tx, _rx) = channel();
+
+        let mut g = Game::new(tx);
+        g.shape_controller.set_shape(Shape::Eye);
+        g.shape_controller.set_position(Point::new(9, 3));
+        g.shape_controller.set_orientation(Orientation::Up);
+        g.start();
+        let mut b = g.board;
+        b.occupy(
+            &g.shape_controller.shape().to_mat(g.shape_controller.orientation()),
+            g.shape_controller.position()
+        );
+
+        assert!(b.0[3][9] != None);
+        assert!(b.0[4][9] != None);
+        assert!(b.0[5][9] != None);
+        assert!(b.0[6][9] != None);        
+
+        g.rotate(Direction::Ccw);
+        
+        assert!(g.shape_controller().position().x == 6, "expected kick on shape");    
+    }
+
     #[test]
     fn internal_kick_r() {
         // set up the game, put some junk in the board
