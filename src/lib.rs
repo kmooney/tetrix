@@ -779,12 +779,59 @@ mod tests {
         b.setup(config, Point::new(0,0), false);
         g.shape_controller.set_shape(Shape::El);
         g.shape_controller.set_orientation(Orientation::Down);
-        g.shape_controller.set_position(Point::new(0,0));
+        g.shape_controller.set_position(Point::new(0,10));
         g.start();
         g.shape_controller().drop(&b);
+        println!("{}", b.report());
         assert!(g.shape_controller().position().x == 0, "x should be 0");
-        assert!(g.shape_controller().position().y == 0, "y should be 0");
+        assert!(g.shape_controller().position().y == 2, "y should be 2, but is {}", g.shape_controller().position().y);
     }
+
+    
+    #[test]
+    fn drop_bug_one() {
+        /*
+        - drop scenario error: the L at 3,3 should be at 2,3
+        05  xxx
+        04 xxxx    x
+        03 xxxx    xx
+        02 xx x     x
+        01 xxxxx   xx
+        00 xx  xxx xx
+        -------------
+          |0123456789
+        */
+
+        let (tx, _rx) = channel();
+
+        let mut g = Game::new(tx);
+        let mut b = Board::new();
+        let config = vec![
+            vec![None, None, None, None, None, None, None,  None, None, None],
+            vec![None, Some(Shape::Eye), None, None, None, None, None,  None, None, None],
+            vec![Some(Shape::Eye), Some(Shape::Eye), None, None, None, None, None,  None, None, None], 
+            vec![Some(Shape::Eye),  Some(Shape::Eye), None, None, Some(Shape::Zee), None, None, None, None, None],
+            vec![Some(Shape::Eye),  Some(Shape::Eye), None, None,  Some(Shape::Zee),  Some(Shape::Zee),  None, None, None, None],
+            vec![Some(Shape::Eye),  Some(Shape::Zee), Some(Shape::Zee),  None,  Some(Shape::ElInv),  Some(Shape::Zee),  None,   None,  Some(Shape::Square),  Some(Shape::Square)],
+            vec![Some(Shape::Zee),  Some(Shape::Zee), None,  None, Some(Shape::ElInv),  Some(Shape::ElInv),  Some(Shape::ElInv),  None,  Some(Shape::Square),  Some(Shape::Square)],
+        ];
+        b.setup(config, Point::new(0,0), false);
+        g.shape_controller.set_shape(Shape::El);
+        g.shape_controller.set_orientation(Orientation::Down);
+        g.shape_controller.set_position(Point::new(2,16));
+        g.start();
+        g.shape_controller().drop(&b);        
+        b.occupy(
+            &g.shape_controller.shape().to_mat(g.shape_controller.orientation()),
+            g.shape_controller.position()
+        );
+        println!("{}", b.report());
+        assert!(g.shape_controller().position().x == 2, "x should be 2");
+        assert!(g.shape_controller().position().y == 0, "y should be 0 but was {}", g.shape_controller().position().y);
+        assert!(b.0[0][3] != None, "Spot 3, 0 should be filled!");
+        assert!(b.0[0][3].unwrap() == Shape::El, "The El shape should occupy x = 3, y = 0");
+    }
+
 
     #[test]
     fn play() {
@@ -1032,7 +1079,7 @@ mod tests {
         let mut got_it = false;
         for o in v.iter() {
             match o {
-                Output::ShapeLocked(_s) => {got_it = true;},
+                Output::ShapeLocked(_s, _b) => {got_it = true;},
                 _ => {}
             }
         }

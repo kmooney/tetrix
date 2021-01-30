@@ -123,10 +123,10 @@ impl Shape {
                     [Some(Shape::El),  Some(Shape::El),  Some(Shape::El), None],
                 ],
                 Orientation::Down => [
+                    [None,  None,  None, None],
                     [Some(Shape::El), Some(Shape::El), None, None],
                     [None, Some(Shape::El), None, None],
                     [None, Some(Shape::El), None, None],
-                    [None,  None,  None, None],
                 ],
                 Orientation::Right => [
                     [None, None, None, None],
