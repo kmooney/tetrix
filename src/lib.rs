@@ -301,7 +301,8 @@ pub fn game() -> GameHandle {
 
 pub struct GameWrapper {
     h: GameHandle,
-    ob: Arc<Mutex<VecDeque<Output>>>
+    ob: Arc<Mutex<VecDeque<Output>>>,
+    level: Arc<Mutex<u8>>
 }
 
 impl GameWrapper {
@@ -310,6 +311,8 @@ impl GameWrapper {
         let ob = Arc::new(Mutex::new(VecDeque::new()));
         let q = ob.clone();
         let rxo = h.output_receiver.clone();
+        let lvl: Arc<Mutex<u8>> = Arc::new(Mutex::new(1));
+
         thread::spawn(move || {
             let mut done = false;
             let rxo = rxo.lock().unwrap();
@@ -325,14 +328,18 @@ impl GameWrapper {
 
         });
         let txclock = h.input_sender.clone();
+        let clocklvl = lvl.clone();
         thread::spawn(move || {    
             // i *think* this lock is released after we send and check error
             // so it should be unlocked most of the time.        
             while !txclock.lock().unwrap().send(Input::TickGame).is_err() {
-                thread::sleep(time::Duration::from_millis(1000));
+                // level 10 = 100
+                // level 1 = 1000
+                // 1000 - (level) * 100
+                thread::sleep(time::Duration::from_millis((1000 - *clocklvl.lock().unwrap() as u64 * 100) as u64));
             }
         });
-        return GameWrapper {h: h, ob: ob};
+        return GameWrapper {h: h, ob: ob, level: lvl};
     }
 
     pub fn drain(ob : Arc<Mutex<VecDeque<Output>>>) -> Vec<Output> {
@@ -351,6 +358,11 @@ impl GameWrapper {
 
     pub fn queue(&self) -> Arc<Mutex<VecDeque<Output>>> {
         return self.ob.clone();
+    }
+
+    pub fn set_level(&self, lvl: u8) {
+        let mut l = self.level.lock().unwrap();
+        *l = lvl;
     }
 
     pub fn send(&self, input: Input) {
@@ -386,7 +398,7 @@ impl GameMaster {
     }
 
     pub fn game(&self, u: Uuid) -> Option<Arc<GameWrapper>> {
-        let mut pool = self.pool.read().unwrap();
+        let pool = self.pool.read().unwrap();
         if pool.contains_key(&u) {            
             return Some(pool[&u].clone());
         }
@@ -462,7 +474,7 @@ mod tests {
         for y in 0..HEIGHT {
             for x in 0..WIDTH {
                 match board.0[y][x] {
-                    Some(shape) => trues += 1,
+                    Some(_) => trues += 1,
                     None => {}
                 }
             }

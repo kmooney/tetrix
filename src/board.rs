@@ -35,7 +35,7 @@ impl Board {
             board_report.push_str(&format!("{:02} ", y));
             for cell in row.iter() {
                 board_report.push_str(match cell {
-                    Some(s) => "x",
+                    Some(_) => "x",
                     None => " ",
                 })
             }
