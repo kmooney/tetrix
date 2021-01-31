@@ -139,12 +139,12 @@ impl ShapeState {
     }
 
     pub fn shape_collide(&self, b: &Board) -> bool {
-        let width = self.shape.width(&self.orientation);
-        let position = &self.position;
-        if position.x + width > WIDTH { return true }
+        let width = self.shape.width(&self.orientation); // 4; 4
+        let position = &self.position; // x = 7, y = 3; x = 6, y = 3; 5, 3
+        if position.x + width > WIDTH { return true } // true; 
         let mat = &self.shape.to_mat(self.orientation);
-        for my in 0..3 {
-            for mx in 0..3 {
+        for my in 0..=3 {
+            for mx in 0..=3 {
                 if position.x + mx >= WIDTH && mat[3 - my][mx] != None {
                     return true
                 }

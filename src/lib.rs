@@ -668,7 +668,61 @@ mod tests {
 
         g.rotate(Direction::Ccw);
         
-        assert!(g.shape_controller().position().x == 6, "expected kick on shape");    
+        assert!(g.shape_controller().position().x == 6, "expected kick on wall");    
+    }
+
+    #[test]
+    fn shape_kick_eye_r() {
+
+        let (tx, _rx) = channel();
+
+        let mut g = Game::new(tx);
+        g.shape_controller.set_shape(Shape::Eye);
+        g.shape_controller.set_position(Point::new(7, 3));
+        g.shape_controller.set_orientation(Orientation::Up);
+        let config = vec![
+            vec![None, None, None, None, None, None, None, None, None, Some(Shape::ElInv)],
+            vec![None, None, None, None, None, None, None, None, None, Some(Shape::ElInv)],
+            vec![None, None, None, None, None, None, None, None, None, Some(Shape::ElInv)],
+            vec![None, None, None, None, None, None, None, None, Some(Shape::ElInv), Some(Shape::ElInv)],
+            vec![None, None, None, None, None, None, None, None, None, Some(Shape::ElInv)],
+            vec![None, None, None, None, None, None, None, None, None, Some(Shape::ElInv)],
+            vec![None, None, None, None, None, None, None, None, Some(Shape::ElInv), Some(Shape::ElInv)],
+            vec![None, None, None, None, None, None, None, None, None, Some(Shape::ElInv)],
+            vec![None, None, None, None, None, None, None, None, None, Some(Shape::ElInv)],
+            vec![None, None, None, None, None, None, None, None, Some(Shape::ElInv), Some(Shape::ElInv)],
+        ];        
+        g.board.setup(config, Point::new(0,0), false);
+        g.start();
+        let mut b = g.board;
+        b.occupy(
+            &g.shape_controller.shape().to_mat(g.shape_controller.orientation()),
+            g.shape_controller.position()
+        );
+        println!("{}", b.report());
+        assert!(b.0[3][7] != None);
+        assert!(b.0[4][7] != None);
+        assert!(b.0[5][7] != None);
+        assert!(b.0[6][7] != None);
+
+        b.vacate(
+            &g.shape_controller.shape().to_mat(g.shape_controller.orientation()),
+            g.shape_controller.position()
+        );
+        g.rotate(Direction::Ccw);
+        
+        assert!(g.shape_controller().position().x == 4, "expected kick on shape"); 
+        b.occupy(
+            &g.shape_controller.shape().to_mat(g.shape_controller.orientation()),
+            g.shape_controller.position()
+        );
+        println!("{}", b.report());
+        assert!(b.0[3][9].unwrap() == Shape::ElInv, "Should be ElInv! But was {:?}", b.0[3][9].unwrap());
+        assert!(b.0[3][8].unwrap() == Shape::ElInv, "Should be ElInv! But was {:?}", b.0[3][8].unwrap());
+        assert!(b.0[3][7].unwrap() == Shape::Eye, "Should be ElInv! But was {:?}", b.0[3][7].unwrap());
+        
+        
+
     }
 
     #[test]
