@@ -119,23 +119,28 @@ impl Game {
             Input::Drop => self.shape_controller.drop(&self.board),
             Input::Down => {self.double_down = true},
             Input::Hold => {
-                self.hold_shape = Some(self.shape_controller.shape());
-                self.shape_controller = ShapeState::new_from_shape(self.next_shape);
-                self.next_shape = Shape::random();
-                self.tx.send(Output::NextShape(self.next_shape)).unwrap();
-                self.tx.send(Output::HeldShape(self.hold_shape.unwrap())).unwrap();
-            },
-            Input::RestoreHold => {
+                /*
+                    If there is a hold shape, pressing "hold" should switch the current shape
+                    and the hold shape. The next shape stays the same.
+
+                    If there is NOT a hold shape, pressing "hold" should make current shape the hold shape 
+                    and make the "next" shape the current shape. The "next next" is randomly generated.
+                */
+
                 match self.hold_shape {
                     Some(shape) => {
+                        self.hold_shape = Some(self.shape_controller.shape());
                         self.shape_controller = ShapeState::new_from_shape(shape);
-                        self.hold_shape = None;
-                        self.tx.send(Output::RestoredShape(shape)).unwrap();
-
                     },
-                    None => {}
-                }
-            }
+                    None => {
+                        self.hold_shape = Some(self.shape_controller.shape());
+                        self.shape_controller = ShapeState::new_from_shape(self.next_shape);
+                        self.next_shape = Shape::random();
+                        self.tx.send(Output::NextShape(self.next_shape)).unwrap();
+                    }
+                }                
+                self.tx.send(Output::HeldShape(self.hold_shape.unwrap())).unwrap();
+            },
             Input::Cw => self.shape_controller.rotate(Direction::Cw, &self.board),
             Input::Ccw => self.shape_controller.rotate(Direction::Ccw, &self.board),
             Input::TickGame => {self.down_ready = true;},
@@ -1040,8 +1045,7 @@ mod tests {
         println!("running hold test");
         let g = crate::game();
         let (_h, rx, tx) = g.tuple();
-        tx.lock().unwrap().send(Input::StartGame).unwrap();
-        println!("setting up!");
+        tx.lock().unwrap().send(Input::StartGame).unwrap();        
         match rx.lock().unwrap().recv() {
             Ok(_) => {
             },
@@ -1075,7 +1079,7 @@ mod tests {
                     _ => {} 
                 },
                 Err(_) => {
-                    assert!(false, "well, fuck right off. we got an error response and that should be covered by another test.");
+                    assert!(false, "well, no way. we got an error response and that should be covered by another test.");
                 }
             }
             counter = counter + 1;
@@ -1084,79 +1088,7 @@ mod tests {
         
         g.join_handle.join().unwrap();
     }
-    #[test]
-    fn restores() {
-        println!("running hold test");
-        let g = crate::game();
-        let (_h, rx, tx) = g.tuple();
-        tx.lock().unwrap().send(Input::StartGame).unwrap();
-        println!("setting up!");
-        match rx.lock().unwrap().recv() {
-            Ok(_) => {
-            },
-            Err(_) => {
-                assert!(false, "there was an error after game start")
-            }
-        }
-
-        let txctrl = tx.clone();
-        let txclock = tx.clone();
-
-        thread::spawn(move || {
-            while !txclock.lock().unwrap().send(Input::TickGame).is_err() {
-                thread::sleep(time::Duration::from_millis(1));
-            }
-        });
-
-        txctrl.lock().unwrap().send(Input::Hold).unwrap();
-        let mut done = false;
-        let mut counter = 0;
-        let mut held_shape = None;
-        let mut got_next_event = false;
-        while !done {
-            println!("receiving..");
-            match rx.lock().unwrap().recv() {
-                Ok(response) => match response {
-                    Output::HeldShape(shape) => {
-                        println!("shape was {:?}", shape);
-                        assert!(true, "we held the shape: {:?}", shape);
-                        done = true;
-                        held_shape = Some(shape);
-                    },
-                    Output::NextShape(shape) => {
-                        println!("next shape is now {:?}", shape);
-                        got_next_event = true;
-                    }
-                    _ => {} 
-                },
-                Err(_) => {
-                    assert!(false, "well, fuck right off. we got an error response and that should be covered by another test.");
-                }
-            }
-            counter = counter + 1;
-            assert!(counter < 10, "we expected a response about holding the shape and did not get one :(");
-        }
-
-        txctrl.lock().unwrap().send(Input::RestoreHold).unwrap();
-        done = false;
-        while !done {
-            match rx.lock().unwrap().recv() {
-                Ok(response) => match response {
-                    Output::RestoredShape(shape) => {
-                        println!("shape restored was {:?}", shape);
-                        assert!(shape == held_shape.unwrap(), "they should be the same!");
-                        done = true;
-                    },
-                   _ => {}
-                },
-                Err(_) => {assert!(false, "the game probably ended with no RestoredShape reponse")}
-            }
-        }
-
-        assert!(got_next_event, "we never got a next event.  odd...");
-        g.join_handle.join().unwrap();
-    }
-
+ 
     #[test]
     fn shape_lock() {
         let g = crate::game();

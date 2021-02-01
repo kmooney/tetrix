@@ -10,7 +10,6 @@ pub enum Output {
     GameRunning,
     BoardUpdate(Board),
     HeldShape(Shape),
-    RestoredShape(Shape),
     NextShape(Shape),
     RotatedShape(Orientation),
     MovedShape,
@@ -30,7 +29,6 @@ pub enum Input {
     Down,
     Drop,
     Hold,
-    RestoreHold,
     Cw,
     Ccw,
 }
