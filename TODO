@@ -16,6 +16,7 @@ More to do on tetrix server:
 [x] landing a piece (ShapeLocked event)
 [x] line completed event
 [x] score change event - include the new score.  should score be kept by client?
+[ ] consider removing MovedShape event
 
 Game wrapper would:
 [x] wait for 'start game' command
