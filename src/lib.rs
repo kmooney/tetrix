@@ -320,7 +320,7 @@ pub fn game() -> GameHandle {
 pub struct GameWrapper {
     h: GameHandle,
     ob: Arc<Mutex<VecDeque<Output>>>,
-    level: Arc<Mutex<u8>>
+    level: Arc<RwLock<u8>>
 }
 
 impl GameWrapper {
@@ -329,7 +329,7 @@ impl GameWrapper {
         let ob = Arc::new(Mutex::new(VecDeque::new()));
         let q = ob.clone();
         let rxo = h.output_receiver.clone();
-        let lvl: Arc<Mutex<u8>> = Arc::new(Mutex::new(1));
+        let lvl: Arc<RwLock<u8>> = Arc::new(RwLock::new(1));
 
         thread::spawn(move || {
             let mut done = false;
@@ -354,7 +354,11 @@ impl GameWrapper {
                 // level 10 = 100
                 // level 1 = 1000
                 // 1000 - (level) * 100
-                thread::sleep(time::Duration::from_millis((1000 - *clocklvl.lock().unwrap() as u64 * 100) as u64));
+                let t_lvl : u8;
+                {
+                    t_lvl = *clocklvl.read().unwrap();
+                }
+                thread::sleep(time::Duration::from_millis((1000 - t_lvl as u64 * 100) as u64));
             }
         });
         return GameWrapper {h: h, ob: ob, level: lvl};
@@ -379,7 +383,7 @@ impl GameWrapper {
     }
 
     pub fn set_level(&self, lvl: u8) {
-        let mut l = self.level.lock().unwrap();
+        let mut l = self.level.write().unwrap();
         *l = lvl;
     }
 
