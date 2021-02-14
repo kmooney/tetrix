@@ -36,7 +36,8 @@ pub struct Game {
     down_ready: bool,
     tx: Sender<Output>,
     input_buffer: VecDeque<Input>,
-    hold_allowed: bool
+    hold_allowed: bool,
+    did_hold: bool
 }
 
 impl Game {
@@ -52,7 +53,8 @@ impl Game {
             down_ready: false,
             tx: tx,
             input_buffer: VecDeque::new(),
-            hold_allowed: true
+            hold_allowed: true,
+            did_hold: false
       } 
     }
 
@@ -145,6 +147,7 @@ impl Game {
                     }                
                     self.tx.send(Output::HeldShape(self.hold_shape.unwrap())).unwrap();
                     self.hold_allowed = false;
+                    self.did_hold = true;
                 }
             },
             Input::Cw => self.shape_controller.rotate(Direction::Cw, &self.board),
@@ -165,14 +168,17 @@ impl Game {
             GameState::Playing => {},
             _ => return,
         }
+
         let from_point = self.shape_controller.position().clone();
         let from_orientation = self.shape_controller.orientation().clone();
+
         self.board.vacate(
             &self.shape_controller.shape().to_mat(self.shape_controller.orientation()),
             self.shape_controller.position()
         );
-        
+      
         self.action(i);
+
         let count = match self.double_down {
             true => 2,
             false => 1
@@ -219,7 +225,12 @@ impl Game {
                     self.down_ready = false;
                 }
                 let to_point = self.shape_controller.position().clone();
-                self.tx.send(Output::ShapePosition(self.shape_controller.shape(), Some(from_orientation), self.shape_controller.orientation(), Some(from_point), to_point)).unwrap();        
+                if self.did_hold {
+                    self.tx.send(Output::ShapePosition(self.shape_controller.shape(), None, self.shape_controller.orientation(), None, to_point)).unwrap();
+                    self.did_hold = false;
+                } else {
+                    self.tx.send(Output::ShapePosition(self.shape_controller.shape(), Some(from_orientation), self.shape_controller.orientation(), Some(from_point), to_point)).unwrap();        
+                }
                 self.board.occupy(
                     &self.shape_controller.shape().to_mat(self.shape_controller.orientation()),
                     self.shape_controller.position()
