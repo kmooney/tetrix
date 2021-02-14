@@ -69,7 +69,7 @@ impl ShapeState {
         if self.position.x > 0 {
             self.position.x -= 1;
         }
-        if self.any_collide(b) {
+        if self.shape_collide(b) {
             self.position.x += 1;
         }
         return startpos != self.position.x
@@ -80,7 +80,7 @@ impl ShapeState {
         if self.position.x <= WIDTH {
             self.position.x += 1;
         }
-        if self.any_collide(b) {
+        if self.shape_collide(b) {
             self.position.x -= 1;
         }
         return startpos != self.position.x;
