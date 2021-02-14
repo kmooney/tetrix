@@ -35,7 +35,8 @@ pub struct Game {
     double_down: bool,
     down_ready: bool,
     tx: Sender<Output>,
-    input_buffer: VecDeque<Input>
+    input_buffer: VecDeque<Input>,
+    hold_allowed: bool
 }
 
 impl Game {
@@ -50,7 +51,8 @@ impl Game {
             double_down: false,
             down_ready: false,
             tx: tx,
-            input_buffer: VecDeque::new()
+            input_buffer: VecDeque::new(),
+            hold_allowed: true
       } 
     }
 
@@ -128,19 +130,22 @@ impl Game {
                     If there is NOT a hold shape, pressing "hold" should make current shape the hold shape 
                     and make the "next" shape the current shape. The "next next" is randomly generated.
                 */
-                match self.hold_shape {
-                    Some(shape) => {
-                        self.hold_shape = Some(self.shape_controller.shape());
-                        self.shape_controller = ShapeState::new_from_shape(shape);
-                    },
-                    None => {
-                        self.hold_shape = Some(self.shape_controller.shape());
-                        self.shape_controller = ShapeState::new_from_shape(self.next_shape);
-                        self.next_shape = Shape::random();
-                        self.tx.send(Output::NextShape(self.next_shape)).unwrap();
-                    }
-                }                
-                self.tx.send(Output::HeldShape(self.hold_shape.unwrap())).unwrap();
+                if self.hold_allowed {
+                    match self.hold_shape {
+                        Some(shape) => {
+                            self.hold_shape = Some(self.shape_controller.shape());
+                            self.shape_controller = ShapeState::new_from_shape(shape);
+                        },
+                        None => {
+                            self.hold_shape = Some(self.shape_controller.shape());
+                            self.shape_controller = ShapeState::new_from_shape(self.next_shape);
+                            self.next_shape = Shape::random();
+                            self.tx.send(Output::NextShape(self.next_shape)).unwrap();
+                        }
+                    }                
+                    self.tx.send(Output::HeldShape(self.hold_shape.unwrap())).unwrap();
+                    self.hold_allowed = false;
+                }
             },
             Input::Cw => self.shape_controller.rotate(Direction::Cw, &self.board),
             Input::Ccw => self.shape_controller.rotate(Direction::Ccw, &self.board),
@@ -188,10 +193,13 @@ impl Game {
 
                 // if the last Input we got was a Tick, the lock it down - otherwise
                 // "continue" the loop and await more input????
+                // aftertouch code is here...
                 self.tx.send(Output::ShapePosition(self.shape_controller.shape(), Some(from_orientation), self.shape_controller.orientation(), Some(from_point), to_point)).unwrap();                
                 
                 if self.input_buffer[0] == Input::Drop || (self.down_ready && self.input_buffer.len() > 1 && self.input_buffer[0] == Input::TickGame && self.input_buffer[1] == Input::TickGame) {
+                    
                     self.tx.send(Output::ShapeLocked(self.shape_controller.shape(), self.board)).unwrap();
+                    self.hold_allowed = true;
                     
                     self.shape_controller = ShapeState::new_from_shape(self.next_shape);                
                     self.next_shape = Shape::random();                                
