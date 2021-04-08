@@ -22,6 +22,8 @@ const VERSION: f32 = 0.01;
 pub const WIDTH: usize  = 10;
 pub const HEIGHT: usize = 25;
 
+use log;
+
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum GameState {New, Playing, Over}
 
@@ -345,6 +347,7 @@ pub struct GameWrapper {
 impl GameWrapper {
 
     pub fn new(h: GameHandle) -> GameWrapper {
+        log::debug!("Creating new GameWrapper!");
         let ob = Arc::new(Mutex::new(VecDeque::new()));
         let q = ob.clone();
         let rxo = h.output_receiver.clone();
@@ -370,6 +373,7 @@ impl GameWrapper {
             // i *think* this lock is released after we send and check error
             // so it should be unlocked most of the time.        
             while !txclock.lock().unwrap().send(Input::TickGame).is_err() {
+                log::debug!("Going to tick the game");
                 // level 10 = 100
                 // level 1 = 1000
                 // 1000 - (level) * 100
@@ -377,7 +381,9 @@ impl GameWrapper {
                 {
                     t_lvl = *clocklvl.read().unwrap();
                 }
-                thread::sleep(time::Duration::from_millis((1000 - t_lvl as u64 * 100) as u64));
+                let sleep_time = 1000 - t_lvl as u64 * 100;
+                log::debug!("sleeping for {:?}", sleep_time);
+                thread::sleep(time::Duration::from_millis(sleep_time));
             }
         });
         return GameWrapper {h: h, ob: ob, level: lvl};
